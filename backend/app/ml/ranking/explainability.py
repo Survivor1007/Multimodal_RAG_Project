@@ -7,7 +7,7 @@ from backend.app.ml.ranking.rrf_ranker import RRF_Ranker
 from backend.app.ml.retrieval.hybrid_retriever import HybridRetriever
 
 
-class ExplainabilityModlule:
+class ExplainabilityModule:
       """Provides explainable ranking with detailed factors."""
 
       def __init__(self):
