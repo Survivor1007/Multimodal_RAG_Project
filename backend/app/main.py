@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from .core.config import settings
 from .core.logging_config import setup_logging
 from .db.session import async_session, engine, init_db
-from api.v1.router import api_router
+from .api.v1.router import api_router
 
 
 @asynccontextmanager
@@ -20,7 +20,7 @@ async def lifespan(app: FastAPI):
       await engine.dispose()
       print("👋 Application shutdown complete")
 
-async def create_app() -> FastAPI:
+def create_app() -> FastAPI:
       app = FastAPI(
             title=settings.PROJECT_NAME,
             version="0.1.0",

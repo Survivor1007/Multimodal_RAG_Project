@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey,String, func
+from sqlalchemy import Column, Integer, Text, DateTime, ForeignKey,String, func, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..base import Base
 
@@ -19,7 +19,7 @@ class Chunk(Base):
       chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
       content: Mapped[str] = mapped_column(Text, nullable=False)
       chunk_type: Mapped[str] = mapped_column(String(20), default="text")  # text or image
-      metadata_json: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string for extra info
+      metadata_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # JSON string for extra info
       created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
       document: Mapped["Document"] = relationship("Document", back_populates="chunks")
