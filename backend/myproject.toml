@@ -1,31 +1,26 @@
 [project]
 name = "multimodal-hybrid-rag"
 version = "0.1.0"
+description = "Production-grade Multimodal Semantic Search + Hybrid RAG System"
+authors = [{ name = "Your Name", email = "you@example.com" }]
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.30.0",
-    "pydantic>=2.9.0",
-    "pydantic-settings>=2.5.0",
-    "sqlalchemy[asyncio]>=2.0.35",
-    "alembic>=1.13.0",
+    "pydantic>=2.8.0",
+    "pydantic-settings>=2.0.0",
+    "sqlalchemy[asyncio]>=2.0.30",
     "asyncpg>=0.29.0",
-    "python-multipart>=0.0.9",           # for file uploads
-    "pillow>=10.4.0",                     # image processing
-    "sentence-transformers>=3.1.0",
-    "torch>=2.4.0",                       # CPU version is fine for hackathon
-    "torchvision>=0.19.0",
-    "open-clip-torch>=2.26.0",            # for CLIP (better than original openai/CLIP for many models)
-    "faiss-cpu>=1.8.0",                   # or faiss-gpu if you have CUDA
+    "alembic>=1.13.0",
+    "python-dotenv>=1.0.0",
+    "structlog>=24.0.0",
+    "python-multipart>=0.0.9",
+    "sentence-transformers>=3.0.0",
+    "transformers>=4.40.0",          # for official CLIP support
+    "pillow>=10.0.0",                # image handling
+    "numpy>=1.26.0",
     "rank-bm25>=0.2.2",
-    "nltk>=3.9.1",                        # for chunking (punkt tokenizer)
-    "python-docx>=1.1.0",
-    "pypdf>=4.3.0",
-    "python-pptx>=0.6.23",
-    "structlog>=24.4.0",                  # structured JSON logging
-    "httpx>=0.27.0",
-    "python-jose[cryptography]>=3.3.0",   # if you want JWT later
-    "passlib[bcrypt]>=1.7.4",             # if auth is added later
+    "faiss-cpu>=1.8.0",              # CPU version for compatibility
 ]
 
 [tool.uv]
