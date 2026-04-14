@@ -1,64 +1,55 @@
 from typing import List, Dict, Any
-import numpy as np
 
+from ..chunking.document_chunker import DocumentChunker
 from ..embeddings.text_embedder import TextEmbedder
 from ..embeddings.image_embedder import ImageEmbedder
-from ..chunking.document_chunker import DocumentChunker
 from ..retrieval.faiss_manager import FAISSManager
+from ..retrieval.bm25_manager import BM25Manager
+
 
 class IngestionPipeline:
-      """Orchestrates document ingestion: chunking + embeddings + storage."""
+      """DB-first ingestion: chunks saved first → real IDs → embeddings → vector stores."""
 
       def __init__(self):
             self.chunker = DocumentChunker()
             self.text_embedder = TextEmbedder()
             self.image_embedder = ImageEmbedder()
             self.faiss_manager = FAISSManager()
+            self.bm25_manager = BM25Manager()
 
-      async def ingest_document(self, document_id: int, text_content: str | None = None, images: List[str] | None = None, metadata: Dict[str, Any] | None = None) -> Dict[str, Any]:
-            """Full ingestion pipeline for a document (text + images)"""
+      async def ingest_chunks(self, document_id: int, chunks: List[Dict[str, Any]]) -> None:
+            """Take pre-saved chunks with real DB IDs and index them."""
+            if not chunks:    
+                  return
 
-            all_chunks = []
-            chunk_ids = []
+            text_contents = [c["content"] for c in chunks if c["chunk_type"] == "text"]
+            text_chunk_ids = [c["id"] for c in chunks if c["chunk_type"] == "text"]
 
-            #1.Text Chunking & Embeddings
-            if text_content:
-                  text_chunks = self.chunker.chunk_text(text_content, metadata)
-                  all_chunks.extend(text_content)
+            vectors_added = 0
 
-                  if text_chunks:
-                        texts = [c["content"] for c in text_chunks]
-                        text_embeddings = self.text_embedder.embed_text(texts)
+            if text_contents:
+                  embeddings = await self.text_embedder.embed_text(text_contents)
+                  await self.faiss_manager.add_embeddings(embeddings, text_chunk_ids)
+                  await self.bm25_manager.add_documents(text_contents, text_chunk_ids)
+                  vectors_added += len(text_contents)
 
-                        # TODO: In real flow, chunk_ids will come from DB after save
-                        # For now we simulate with indices
-                        faiss_ids = await self.faiss_manager.add_embeddings(
-                              text_embeddings,
-                              document_id,
-                              list(range(len(text_chunks)))
-                        )
 
-            if images:
-                  for img_path in images:
-                  # For demo we assume a simple description; in production use captioning model
-                        image_desc = f"Image from document: {metadata.get('title', 'Untitled')}"
-                        image_chunks = self.chunker.chunk_image_description(
-                              image_desc, img_path, metadata
-                        )
-                        all_chunks.extend(image_chunks)
-
-                        if image_chunks:
-                              image_embeddings = await self.image_embedder.embed_image([img_path])
-                              faiss_ids = await self.faiss_manager.add_embeddings(
-                                    image_embeddings,
-                                    document_id,
-                                    list(range(len(all_chunks) - len(image_chunks), len(all_chunks)))
-                              )
+            # Image handling (simplified)
+            for chunk in [c for c in chunks if c["chunk_type"] == "image"]:
+                  img_path = chunk.get("metadata", {}).get("image_path")
+                  if img_path:
+                        try:
+                              emb = await self.image_embedder.embed_image([img_path])
+                              if emb.shape[0] > 0:
+                                    await self.faiss_manager.add_embeddings(emb, [chunk["id"]])
+                                    vectors_added += 1
+                        except Exception as e:
+                              print(f"Warning: Failed to embed image {img_path}: {e}")
+                              continue
+            
 
             return {
-                  "document_id":document_id,
-                  "total_chunks":len(all_chunks),
-                  "status":"ingested",
-                  "faiss_vector_added":self.faiss_manager.index.ntotal if self.faiss_manager.index else 0
+                  "total_chunks": len(chunks),
+                  "faiss_vectors": self.faiss_manager.total_vectors,
+                  "vectors_added": vectors_added
             }
-
