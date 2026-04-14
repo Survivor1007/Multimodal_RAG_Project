@@ -1,39 +1,49 @@
+from functools import partial
 from typing import List
 import numpy as np
-from sentence_transformers import SentenceTransformer
-import torch 
+import torch
 import asyncio
-
-from .base_embedder import BaseEmbeder
 from ...core.config import settings
 
-class TextEmbedder(BaseEmbeder):
-      """Text embedder using sentence transformers"""
+from .base_embedder import BaseEmbedder
+
+
+class TextEmbedder(BaseEmbedder):
+      """Lazy-loaded text embedder."""
 
       def __init__(self):
             self.model_name = settings.EMBEDDING_MODEL
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
-            self.model = SentenceTransformer(self.model_name, device = self.device)
-            self._dimension = self.model.get_sentence_embedding_dimension()
+            self._model = None
+            self._dimension = None
+            self._lock = asyncio.Lock()
+
+      async def _load_model(self):
+            async with self._lock:
+                  if self._model is None:
+                        from sentence_transformers import SentenceTransformer
+                        self._model = SentenceTransformer(self.model_name, device=self.device)
+                        self._dimension = self._model.get_sentence_embedding_dimension()
 
       async def embed_text(self, texts: List[str]) -> np.ndarray:
-            """Embed text asynchronously"""
             if not texts:
-                  return np.array([], dtype=np.flaot32).reshape(0, self.dimension)
-      
+                  return np.array([], dtype=np.float32).reshape(0, self.dimension)
 
-            #Run CPU/GPU heavy interferenc in thread pool
+            await self._load_model()
+
             loop = asyncio.get_running_loop()
             embeddings = await loop.run_in_executor(
-                  None, self.model.encode, texts, convert_to_numpy = True, normalize_embeddings = True
+                  None, partial(self._model.encode, texts, convert_to_numpy=True, normalize_embeddings=True)
             )
-
             return embeddings
-      
-      async def embed_image(self, images: List) -> np.ndarray:
-            """Not supported for text embedder."""
-            raise NotImplementedError("TextEmbedder does not support image embedding. Use ImageEmbedder.")
+
+      async def embed_image(self, images):
+            raise NotImplementedError("Use ImageEmbedder for images.")
 
       @property
       def dimension(self) -> int:
+            if self._dimension is None:
+                  # Force load to get dimension
+                  import asyncio
+                  asyncio.run(self._load_model())  # safe in this context
             return self._dimension

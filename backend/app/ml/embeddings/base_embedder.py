@@ -4,7 +4,7 @@ import numpy as np
 from PIL import Image
 
 
-class BaseEmbeder(ABC):
+class BaseEmbedder(ABC):
       """Abstract base class for all embedders"""
 
       @abstractmethod
