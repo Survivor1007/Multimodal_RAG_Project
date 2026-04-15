@@ -27,5 +27,14 @@ class Settings(BaseSettings):
       FAISS_INDEX_PATH: str = Field(default="data/indexes/faiss.index")
       BM25_INDEX_PATH: str = Field(default="data/indexes/bm25_index.pkl")
 
+      # Groq LLM
+      GROQ_API_KEY: str | None = Field(default=None, description="Groq API Key")
+      GROQ_MODEL: str = Field(default="llama-3.1-8b-instant", description="Groq model")
+
+      # Tavily Web Search
+      TAVILY_API_KEY: str | None = Field(default=None, description="Tavily API Key")
+      WEB_SEARCH_THRESHOLD: float = Field(default=0.65, description="Confidence threshold to trigger web search")
+      TAVILY_MAX_RESULTS: int = Field(default=5, description="Max web results")
+
 
 settings = Settings()

@@ -18,7 +18,6 @@ async def rag_endpoint(
       """Full RAG pipeline with retrieval + generation."""
       response = await rag_service.generate_rag_response(
             db=db,
-            query=request.query,
-            k=request.k
+            request=request
       )
       return RAGResponse(**response)

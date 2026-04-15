@@ -9,7 +9,7 @@ class RetrievedChunk(BaseModel):
       content:str
       score:float
       chunk_type:str
-      meta_data: Dict[str, Any] = Field(default_factory=dict)
+      metadata: Dict[str, Any] = Field(default_factory=dict)
 
 class SearchResponse(BaseModel):
       query: str
@@ -22,3 +22,4 @@ class RAGResponse(BaseModel):
       answer: str
       sources: List[RetrievedChunk]
       confidence: float = Field(..., ge=0.0, le=1.0)
+      used_web_search:bool

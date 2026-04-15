@@ -18,7 +18,7 @@ class QueryService:
       async def search(self, db: AsyncSession, query: str, k: int = 5, use_reranker: bool = True) -> List[dict]:
             """Perform hybrid search and return enriched results."""
             # Get ranked chunk IDs
-            ranked_results = await self.hybrid_retriever.retrieve(query, k * 3)
+            ranked_results = await self.hybrid_retriever.retrieve(query, k * 4)
 
             if not ranked_results:
                   return []
@@ -33,17 +33,40 @@ class QueryService:
             # Create lookup map
             chunk_map = {chunk.id: chunk for chunk in chunks}
 
-            # Step 3: Build enriched results in ranked order
+            # Build results while preserving rank order and avoiding duplicates
+            seen_contents = set()
             results = []
-            for chunk_id, score in ranked_results[:k]:
+
+            for chunk_id, score in ranked_results:
                   chunk = chunk_map.get(chunk_id)
-                  if chunk:
-                        results.append({
-                              "chunk_id": chunk.id,
-                              "content": chunk.content[:800] + "..." if len(chunk.content) > 800 else chunk.content,
-                              "score": float(score),
-                              "chunk_type": chunk.chunk_type,
-                              "metadata": chunk.metadata_json or {}
-                        })
+                  if not chunk:
+                        continue
+
+                  # Simple deduplication by content hash
+                  content_hash = hash(chunk.content[:200])
+                  if content_hash in seen_contents:
+                        continue
+                  seen_contents.add(content_hash)
+
+                  metadata = chunk.metadata_json
+                  if isinstance(metadata, str):
+                        import json
+                        try:
+                              metadata = json.loads(metadata)
+                        except:
+                              metadata = {}
+                  elif metadata is None:
+                        metadata = {}
+
+                  results.append({
+                        "chunk_id": chunk.id,
+                        "content": chunk.content[:800] + "..." if len(chunk.content) > 800 else chunk.content,
+                        "score": float(score),
+                        "chunk_type": chunk.chunk_type,
+                        "metadata": metadata or {}
+                  })
+
+                  if len(results) >= k:
+                        break
             
             return results

@@ -13,5 +13,6 @@ class SearchRequest(QueryRequest):
 class RAGRequest(QueryRequest):
       temperature: float = Field(default=0.7, ge=0.0, le=1.0)
       max_tokens: int = Field(default=512, ge=50, le=2048)
+      use_web_search: bool = Field(default=False, description="Force web search even if internal confidence is high")
 
 
