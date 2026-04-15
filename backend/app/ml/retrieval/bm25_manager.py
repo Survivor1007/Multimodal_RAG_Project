@@ -9,12 +9,25 @@ from ...core.config import settings
 class BM25Manager:
       """Thread-safe BM25 manager."""
 
+      _instance = None
+      _lock = asyncio.Lock()
+
+      def __new__(cls):
+            if cls._instance is None:
+                  cls._instance = super().__new__(cls)
+                  cls._instance.__initialized = False
+            return cls._instance
+      
+
       def __init__(self):
+            if self.__initialized:
+                  return 
             self.index_path = Path(settings.BM25_INDEX_PATH)
             self.index_path.parent.mkdir(parents=True, exist_ok=True)
             self.bm25: Optional[BM25Okapi] = None
             self.chunk_ids: List[int] = []          # parallel list to corpus
             self._write_lock = asyncio.Lock()
+            self.__initialized = True
       
       async def add_documents(self, documents: List[str], chunk_ids: List[int]):
             """Add documents to BM25 corpus using real DB chunk IDs."""

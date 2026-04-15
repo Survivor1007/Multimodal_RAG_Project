@@ -10,15 +10,27 @@ from ...core.config import settings
 
 
 class FAISSManager:
-      """Thread-safe FAISS manager with DB-first mapping and safe initialization."""
+      """Singleton + thread-safe FAISS manager (shared across ingestion & search)."""
+
+      _instance = None
+      _lock = asyncio.Lock()
+
+      def __new__(cls):
+            if cls._instance is None:
+                  cls._instance = super().__new__(cls)
+                  cls._instance.__initialized = False
+            return cls._instance
 
       def __init__(self):
+            if self.__initialized:
+                  return 
             self.index_path = Path(settings.FAISS_INDEX_PATH)
             self.index_path.parent.mkdir(parents=True, exist_ok=True)
             self.dimension: Optional[int] = None
             self.index: Optional[faiss.IndexFlatIP] = None
             self.faiss_to_chunk: Dict[int, int] = {}   # faiss_id → real DB chunk_id
             self._write_lock = asyncio.Lock()
+            self.__initialized = True
 
       async def _initialize_index(self, dimension: int):
             """Ensure index is initialized."""

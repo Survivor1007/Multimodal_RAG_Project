@@ -1,10 +1,10 @@
 
+from typing import List, Dict, Any
 from datetime import datetime
-from typing import Any, Dict
 
-from backend.app.ml.ranking.reranker import CrossEncoderReranker
-from backend.app.ml.ranking.rrf_ranker import RRF_Ranker
-from backend.app.ml.retrieval.hybrid_retriever import HybridRetriever
+from ..retrieval.hybrid_retriever import HybridRetriever
+from .rrf_ranker import RRF_Ranker
+from .reranker import CrossEncoderReranker
 
 
 class ExplainabilityModule:
