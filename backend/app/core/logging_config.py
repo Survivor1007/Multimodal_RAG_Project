@@ -1,5 +1,6 @@
 import structlog
 import logging
+import sys
 from .config import settings
 
 def setup_logging():
@@ -25,10 +26,14 @@ def setup_logging():
             cache_logger_on_first_use=True,
       )
 
-      #Also configure standard logging
+      #Root logger
       logging.basicConfig(
             format="%(message)s",
             level=settings.LOG_LEVEL,
+            stream=sys.stdout,
             handlers=[logging.StreamHandler()],
       )
+
+      #Uvicorn access logs
+      logging.getLogger("uvicorn.access").handlers = []
       

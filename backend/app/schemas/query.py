@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 class QueryRequest(BaseModel):
       query: str = Field(..., min_length = 1, max_length = 500, description="User query")
-      k: int = Field(default=5,ge=1, gl=20, description="No. of solutions to return")
+      k: int = Field(default=5,ge=1, le=20, description="No. of solutions to return")
       use_reranker: bool = Field(default=True, description="Whether to apply cross-encoder reranking")
 
 class SearchRequest(QueryRequest):

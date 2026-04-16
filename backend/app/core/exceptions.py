@@ -1,4 +1,6 @@
 from fastapi import HTTPException, status
+from typing import Any
+
 
 
 class RAGException(HTTPException):
@@ -13,3 +15,7 @@ class NotFoundException(RAGException):
 class ValidationException(RAGException):
       def __init__(self, detail: str = "Validation error"):
             super().__init__(detail, status.HTTP_422_UNPROCESSABLE_CONTENT)
+
+class LLMException(RAGException):
+      def __init__(self, detail: str = "LLM service error"):
+            super().__init__(detail, status.HTTP_503_SERVICE_UNAVAILABLE)

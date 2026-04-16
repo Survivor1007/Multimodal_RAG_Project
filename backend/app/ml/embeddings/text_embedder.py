@@ -23,7 +23,7 @@ class TextEmbedder(BaseEmbedder):
                   if self._model is None:
                         from sentence_transformers import SentenceTransformer
                         self._model = SentenceTransformer(self.model_name, device=self.device)
-                        self._dimension = self._model.get_sentence_embedding_dimension()
+                        self._dimension = self._model.get_embedding_dimension()
 
       async def embed_text(self, texts: List[str]) -> np.ndarray:
             if not texts:
