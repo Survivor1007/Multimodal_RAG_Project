@@ -30,7 +30,6 @@ def setup_logging():
       logging.basicConfig(
             format="%(message)s",
             level=settings.LOG_LEVEL,
-            stream=sys.stdout,
             handlers=[logging.StreamHandler()],
       )
 
