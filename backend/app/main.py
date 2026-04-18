@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 
 from .core.config import settings
 from .core.logging_config import setup_logging
-from .db.session import async_session, engine, init_db
+from .db.session import get_async_session, engine, init_db
 from .api.v1.router import api_router
 
 

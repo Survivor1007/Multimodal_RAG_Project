@@ -2,6 +2,7 @@ from typing import List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db.repositories.base_repository import BaseRepository
+from ..db.repositories.document_repository import DocumentRepository
 from ..db.models.document import Document
 from ..db.models.chunk import Chunk
 from ..ml.pipelines.ingestion_pipeline import IngestionPipeline
@@ -10,7 +11,7 @@ class IngestionService:
       """Business logic for document ingestion"""
 
       def __init__(self):
-            self.document_repo = BaseRepository(Document)
+            self.document_repo = DocumentRepository()
             self.chunk_repo = BaseRepository(Chunk)
             self.pipeline = IngestionPipeline()
 
@@ -27,15 +28,26 @@ class IngestionService:
             """Correct flow: Save Document → Save Chunks → Embed → Index."""
 
             # 1. Save document metadata
-            document = Document(
+            document, already_exists = await self.document_repo.get_or_create_by_content(
+                  session=db,
                   title=title,
+                  content=content,
                   file_name=file_name,
                   file_type=file_type,
-                  content_summary=content[:500] if content else None,
+                  source_url=None,
                   user_id=user_id
             )
-            db.add(document)
             await db.flush()  # Get document.id
+
+            #------If document already exist then no chunking--------------------
+            if already_exists:
+                  return {
+                        "document_id": document.id,
+                        "title": title,
+                        "status": "skipped",
+                        "chunks_created": 0,
+                        "message": "Document already exists.Skipping re-ingestion"
+                  }
 
             # 2. Create and save Chunks (DB first)
             all_chunks = []
