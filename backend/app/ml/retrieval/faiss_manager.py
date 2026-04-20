@@ -69,16 +69,24 @@ class FAISSManager:
 
       async def search(self, query_embedding: np.ndarray, k: int = 10) -> List[Tuple[int, float]]:
             """Search – thread-safe for reads."""
+
+            await self._initialize_index(query_embedding.shape[0])
+
+
             if self.index is None or self.index.ntotal == 0:
                   return []
 
-            await self._initialize_index(query_embedding.shape[0])
+            
 
             query_embedding = query_embedding.reshape(1, -1).astype(np.float32)
             faiss.normalize_L2(query_embedding)
 
             scores, indices = self.index.search(query_embedding, k)
             results = []
+            # print("==" * 50)
+            # print("FAISS total vectors:", self.total_vectors)
+            # print("==" * 50)
+
             for idx, score in zip(indices[0], scores[0]):
                   if idx != -1:
                         results.append((int(idx), float(score)))

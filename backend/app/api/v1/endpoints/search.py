@@ -27,5 +27,5 @@ async def search_documents(
             query=request.query,
             results=results,
             total_retrieved=len(results),
-            ranking_method="hybrid_rrf_reranker"
+            ranking_method="hybrid_rrf_reranker" if request.use_reranker else "hybrid search"
       )

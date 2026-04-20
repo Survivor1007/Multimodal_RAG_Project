@@ -1,6 +1,7 @@
 from typing import Type, TypeVar, Generic, Optional, List, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select 
+from sqlalchemy.orm import selectinload
 from sqlalchemy import delete
 from ..base import Base
 
@@ -33,3 +34,18 @@ class BaseRepository(Generic[ModelType]):
             result = await session.execute(delete(self.model).where(self.model.id == id))
             await session.commit()
             return result.rowcount > 0
+      
+      #----ADDED FOR FUTURE CHUNK/DOCUMENT RETRIEVAL--------------------------------------------
+      async def get_with_relationships(
+            self,
+            session: AsyncSession, 
+            id: int,realtionships:list = None
+      ) -> Optional[ModelType]:
+            """Generic eager loading helper"""
+            query = select(self.model).where(self.model.id == id)
+            if realtionships:
+                  for rel in realtionships:
+                        query = query.options(selectinload(rel))
+            
+            result = await session.execute(query)
+            return result.scalar_one_or_none()

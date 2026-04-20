@@ -13,7 +13,15 @@ class HybridRetriever:
             """Hybrid retrieval with simple score fusion (can be upgraded to RRF later)."""
             sem_results = await self.semantic.retrieve(query, k * 2)
             kw_results = await self.keyword.retrieve(query, k * 2)
-
+            
+            # print("+" * 50 + "Semantic results" + "=>")
+            # for r in sem_results:
+            #       print(r)
+            
+            # print("+" * 50 + "Keyword results" + "=>")
+            # for k in kw_results:
+            #       print(k)
+            
             # Combine and normalize scores
             score_map: dict[int, float] = {}
             for chunk_id, score in sem_results:
