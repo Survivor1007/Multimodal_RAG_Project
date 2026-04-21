@@ -107,6 +107,8 @@ class RAGService:
             # Step 4: Cross-Encoder Reranking
             reranked = await self.explain_module.reranker.rerank(request.query, unique_candidates[:request.k * 2])
 
+            
+
             # Step 5: Final sources
             final_sources = []
             for cid, score, content in reranked[:request.k]:
@@ -126,6 +128,29 @@ class RAGService:
             # Step 6: Generate answer with Groq
             context = "\n\n".join([s["content"] for s in final_sources])
 
+            #------Confidence Calculation----------------------------------------------------
+            rerank_scores = [score for _, score, _ in reranked[:request.k]]
+            avg_rerank_score = sum(rerank_scores) / len(rerank_scores) if rerank_scores else 0.0
+
+            # ---Normalize (cross-encoder scores are often unbounded)---
+            normalized_rerank = max(0.0, min(1.0, avg_rerank_score))
+
+            # ---Retrieval score (from hybrid)---
+            retrieval_scores = [item.get("score", 0.0) for item in final_sources if item["chunk_id"] > 0]
+            avg_retrieval_score = sum(retrieval_scores) / len(retrieval_scores) if retrieval_scores else 0.0
+            normalized_retrieval = max(0.0, min(1.0, avg_retrieval_score))
+
+            coverage = min(1.0, len(final_sources) / request.k)
+
+            web_penalty = 0.15 if should_use_web else 0.0
+
+            confidence = (
+                  0.5 * normalized_rerank +
+                  0.3 * normalized_retrieval +
+                  0.2 * coverage
+            ) - web_penalty
+            confidence = max(0.0, min(1.0, confidence))
+
             try:
                   completion = await asyncio.to_thread(
                         self.groq_client.chat.completions.create,
@@ -138,7 +163,6 @@ class RAGService:
                         max_tokens=request.max_tokens
                   )
                   answer = completion.choices[0].message.content.strip()
-                  confidence = 0.92 if not should_use_web else 0.78
             except Exception as e:
                   answer = f"Failed to generate response with Groq: {str(e)}"
                   confidence = 0.45

@@ -33,10 +33,21 @@ class CrossEncoderReranker:
 
             # Combine original score + reranker score
             reranked = []
+            min_score = min(rerank_scores)
+            max_score = max(rerank_scores)
+
+
             for (chunk_id, orig_score, content), rerank_score in zip(candidates, rerank_scores):
+                  #---Normalize Reranker score---
+                  if max_score == min_score:
+                        norm_rerank = 0.5
+                  else:
+                        norm_rerank = (rerank_score - min_score) / (max_score - min_score)
+                  
                   # Normalize original score and avoid negative impact
-                  norm_orig = max(0.0, float(orig_score))
-                  final_score = 0.65 * norm_orig + 0.35 * float(rerank_score)
+                  norm_orig = max(0.0, min(1.0, float(orig_score)))
+                  final_score = 0.7 * norm_rerank + 0.3 * norm_orig
+
                   reranked.append((chunk_id, final_score, content))
 
             # Sort by final score
