@@ -148,7 +148,7 @@ class DocumentRepository(BaseRepository[Document]):
 
                   sources.append({
                         "document_id": doc.id,
-                        "document_hash": doc.content_hash,
+                        "document_content_hash": doc.content_hash,
                         "chunk_id": chunk.id,
                         "title": doc.title,
                         "file_name": doc.file_name,
