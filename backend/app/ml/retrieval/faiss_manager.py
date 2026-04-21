@@ -104,6 +104,9 @@ class FAISSManager:
       def get_chunk_id(self, faiss_id: int) -> Optional[int]:
             return self.faiss_to_chunk.get(faiss_id)
 
+      async def ensure_loaded(self, dimension: int = 384):
+            """Public method to ensure index is loaded."""
+            await self._initialize_index(dimension)
       @property
       def total_vectors(self) -> int:
             """Safe access to ntotal."""
