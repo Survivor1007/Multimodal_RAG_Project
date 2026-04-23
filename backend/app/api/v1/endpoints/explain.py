@@ -16,6 +16,6 @@ async def explain_ranking(
     db: AsyncSession = Depends(get_db)
 ):
     """Get detailed explanation of ranking decisions."""
-    explanation = await explain_module.explain_ranking(request.query, request.k)
+    explanation = await explain_module.explain_ranking(request.query,db, request.k)
     return ExplainResponse(**explanation)
 
