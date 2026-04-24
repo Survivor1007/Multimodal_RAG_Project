@@ -1,4 +1,5 @@
 from typing import List, Dict, Any
+import traceback
 
 from ..chunking.document_chunker import DocumentChunker
 from ..embeddings.text_embedder import TextEmbedder
@@ -36,7 +37,7 @@ class IngestionPipeline:
 
             # Image handling (simplified)
             for chunk in [c for c in chunks if c["chunk_type"] == "image"]:
-                  img_path = chunk.get("metadata", {}).get("image_path")
+                  img_path = chunk.get("metadata", {}).get("path")
                   if img_path:
                         try:
                               emb = await self.image_embedder.embed_image([img_path])
@@ -44,7 +45,8 @@ class IngestionPipeline:
                                     await self.faiss_manager.add_embeddings(emb, [chunk["id"]])
                                     vectors_added += 1
                         except Exception as e:
-                              print(f"Warning: Failed to embed image {img_path}: {e}")
+                              print(f"Warning: Failed to embed image {img_path}: {str(e)}")
+                              traceback.print_exc()
                               continue
             
 

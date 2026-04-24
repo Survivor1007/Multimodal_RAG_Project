@@ -14,3 +14,16 @@ async def save_upload_file(file: BinaryIO, filename: str, upload_dir: str = "dat
             shutil.copyfileobj(file, buffer)
 
       return str(file_path)
+
+async def extract_text_from_upload(file, file_type: str) -> str:
+      """
+            Extract text from uploaded file.
+            Currently supports txt files.
+            Safe fallback for unknown types.
+      """
+      raw = await file.read()
+
+      if file_type.lower() in ["txt", "text"]:
+            return raw.decode("utf-8", errors = "ignore")
+      
+      return ""

@@ -55,8 +55,12 @@ class ImageEmbedder(BaseEmbedder):
             def _process():
                   inputs = self._processor(images=pil_images, return_tensors="pt", padding=True).to(self.device)
                   with torch.no_grad():
-                        features = self._model.get_image_features(**inputs)
-                        features = features / features.norm(dim=-1, keepdim=True)
+                        outputs = self._model.get_image_features(**inputs)
+                        if hasattr(outputs, "pooler_output"):
+                              features = outputs.pooler_output
+                        else:
+                              features = outputs
+                        features = features / features.norm(dim = 1, keepdim=True)
                   return features.cpu().numpy()
 
             return await loop.run_in_executor(None, _process)

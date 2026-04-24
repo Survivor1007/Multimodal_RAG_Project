@@ -16,7 +16,7 @@ async def get_logs(limit: int = Query(50, ge = 1, le = 100)):
             raise HTTPException(status_code=404, detail="Log file not found")
       
       try:
-            with LOG_FILE_PATH.open("r", encoding = "utf-8") as f:
+            with LOG_FILE_PATH.open("r", encoding = "utf-8", errors="replace") as f:
                   lines = f.readlines()
             #=====================
             #Make structured logs

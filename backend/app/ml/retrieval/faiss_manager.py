@@ -25,6 +25,8 @@ class FAISSManager:
             if self.__initialized:
                   return 
             self.index_path = Path(settings.FAISS_INDEX_PATH)
+            self.image_path = Path(settings.FAISS_IMAGE_INDEX_PATH)
+            self.image_path.parent.mkdir(parents=True, exist_ok=True)
             self.index_path.parent.mkdir(parents=True, exist_ok=True)
             self.dimension: Optional[int] = None
             self.index: Optional[faiss.IndexFlatIP] = None
@@ -67,6 +69,7 @@ class FAISSManager:
                   self._save_index()
                   return faiss_ids
 
+      
       async def search(self, query_embedding: np.ndarray, k: int = 10) -> List[Tuple[int, float]]:
             """Search – thread-safe for reads."""
 

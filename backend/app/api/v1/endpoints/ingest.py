@@ -7,6 +7,7 @@ from pathlib import Path
 from ....core.dependencies import get_db
 from ....services.ingestion_service import IngestionService
 from ....core.exceptions import RAGException
+from ....utils.file_handlers import extract_text_from_upload
 
 router = APIRouter(tags=["ingest"])
 
@@ -24,13 +25,25 @@ async def ingest_document(
     title: Annotated[str, Form(description="Title of the document")],
     file_name: Annotated[str, Form(description="Original filename")],
     file_type: Annotated[str, Form(description="File type e.g. txt, pdf, jpg")],
+    file : Annotated[UploadFile | None, File(description="Optional document file")] = None,
     content: Annotated[str | None, Form(description="Raw text content (for text documents)")] = None,
     images: Annotated[List[UploadFile] | None, File(description="Optional image files (leave empty if none)")] = None,
     user_id: Annotated[int | None, Form(description="User ID (optional)")] = None,
     db: AsyncSession = Depends(get_db),
 ):
     """Fixed for Swagger UI: proper default + safe handling of empty images."""
+
+
     try:
+        #================
+        #Text Extraction
+        #================
+        extracted_content = content or ""
+        if file and not content:
+            extracted_content = await extract_text_from_upload(file, file_type)
+        
+
+
         image_paths: List[str] = []
 
         if images:  # Skip if Swagger sends empty placeholder
@@ -51,7 +64,7 @@ async def ingest_document(
             title=title,
             file_name=file_name,
             file_type=file_type,
-            content=content,
+            content=extracted_content,
             images=image_paths if image_paths else None,
             user_id=user_id,
         )
