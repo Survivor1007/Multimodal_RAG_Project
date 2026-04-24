@@ -106,3 +106,87 @@ class IngestionService:
                   "vectors_added": pipeline_result["vectors_added"],
                   "message": "Document ingested and indexed successfully."
             }
+      #=======================
+      #INGESTION OF FILE ONLY
+      #=======================
+      async def ingest_file(
+            self,
+            db: AsyncSession,
+            title: str,
+            file_name: str ,
+            file_type: str,
+            content : str,
+            user_id : int  | None
+      ) -> Dict[str, any]:
+            """
+                  Clean text-only ingestion flow(v2).
+                  No image handling.
+            """
+            safe_content = content if content else (file_name or "empty_file")
+            #==============
+            #Save document
+            #==============
+            document, already_exists = await self.document_repo.get_or_create_by_content(
+                  session=db,
+                  title=title,
+                  content=safe_content,
+                  file_name=file_name,
+                  file_type=file_type,
+                  source_url=None,
+                  user_id=user_id
+            )
+            await db.flush()
+
+            if already_exists:
+                  return{
+                        "document_id": document.id,
+                        "title": title,
+                        "status": "skipped",
+                        "chunks_created": 0,
+                        "message": "Document already exists.Skipping re-ingestion"
+                  }
+            #==============
+            #Chunk text
+            #==============
+            chunk_dicts = self.pipeline.chunker.chunk_text(
+                  content, {"title": title}
+            )
+
+            chunks = []
+            for cd in chunk_dicts:
+                  chunk = Chunk(
+                        document_id=document.id,
+                        chunk_index=cd["chunk_index"],
+                        content=cd["content"],
+                        chunk_type="text",
+                        metadata_json=cd.get("metadata")   # Pass dict directly – JSON column handles it
+                  )
+                  db.add(chunk)
+                  chunks.append(chunk)
+            
+            await db.commit()
+            await db.refresh(document)
+
+            chunk_list_for_pipeline = [
+                  {
+                        "id": c.id,
+                        "content": c.content,
+                        "chunk_type": c.chunk_type,
+                        "metadata": c.metadata_json or {}   # Now safely a dict
+                  }
+                  for c in chunks
+            ]  
+            # 3. Index in vector stores
+            pipeline_result = await self.pipeline.ingest_chunks(document.id, chunk_list_for_pipeline)
+
+            return {
+                  "document_id": document.id,
+                  "title": title,
+                  "status": "success",
+                  "chunks_created": len(chunks),
+                  "faiss_vectors_total": pipeline_result["faiss_vectors"],
+                  "vectors_added": pipeline_result["vectors_added"],
+                  "message": "Document ingested and indexed successfully."
+            }
+
+            
