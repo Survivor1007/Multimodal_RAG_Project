@@ -27,11 +27,13 @@ class IngestionService:
       ) -> Dict[str, Any]:
             """Correct flow: Save Document → Save Chunks → Embed → Index."""
 
+            safe_content = content if content else (file_name or "image_upload")
+
             # 1. Save document metadata
             document, already_exists = await self.document_repo.get_or_create_by_content(
                   session=db,
                   title=title,
-                  content=content,
+                  content=safe_content,
                   file_name=file_name,
                   file_type=file_type,
                   source_url=None,
@@ -64,9 +66,24 @@ class IngestionService:
                         db.add(chunk)
                         all_chunks.append(chunk)
 
+            
+            #===============
+            #IMAGE CHUNKING
+            #===============
+            if images:
+                  for idx, image_path in enumerate(images):
+                        chunk = Chunk(
+                              document_id = document.id,
+                              chunk_index = len(all_chunks) + idx,
+                              content = image_path,
+                              chunk_type = "image",
+                              metadata_json = {"source": "image", "path":image_path}     
+                        )
+                        db.add(chunk)
+                        all_chunks.append(chunk)
+            
             await db.commit()
             await db.refresh(document)
-
             # Convert to dict with real IDs for pipeline
             chunk_list_for_pipeline = [
                   {
@@ -77,7 +94,6 @@ class IngestionService:
                   }
                   for c in all_chunks
             ]  
-
             # 3. Index in vector stores
             pipeline_result = await self.pipeline.ingest_chunks(document.id, chunk_list_for_pipeline)
 

@@ -14,6 +14,7 @@ class Settings(BaseSettings):
       ENVIRONMENT: str = Field(default="development")
       DEBUG: bool = Field(default=True)
       API_V1_STR: str = Field(default="/api/v1")
+      API_V2_STR: str = Field(default="/api/v2")
 
       # Database
       DATABASE_URL: str
@@ -25,6 +26,7 @@ class Settings(BaseSettings):
       EMBEDDING_MODEL: str = Field(default="all-MiniLM-L6-v2")
       CLIP_MODEL: str = Field(default="openai/clip-vit-base-patch32")
       FAISS_INDEX_PATH: str = Field(default="data/indexes/faiss.index")
+      FAISS_IMAGE_INDEX_PATH: str = Field(default="data/indexes/faiss_image.index")
       BM25_INDEX_PATH: str = Field(default="data/indexes/bm25_index.pkl")
 
       # Groq LLM

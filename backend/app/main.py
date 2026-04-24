@@ -5,6 +5,7 @@ from .core.config import settings
 from .core.logging_config import setup_logging
 from .db.session import get_async_session, engine, init_db
 from .api.v1.router import api_router
+from .api.v2.router import api_router as api_router_v2
 
 
 @asynccontextmanager
@@ -29,6 +30,7 @@ def create_app() -> FastAPI:
       )
 
       app.include_router(api_router, prefix = settings.API_V1_STR)
+      app.include_router(api_router_v2, prefix= settings.API_V2_STR)
 
       return app
 
