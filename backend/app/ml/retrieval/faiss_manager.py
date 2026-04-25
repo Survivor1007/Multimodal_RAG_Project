@@ -33,58 +33,74 @@ class FAISSManager:
             self.faiss_to_chunk: Dict[int, int] = {}   # faiss_id → real DB chunk_id
             self._write_lock = asyncio.Lock()
             self.__initialized = True
+            self.indexes: Dict[str, faiss.IndexFlatIP] = {}
+            self.dimensions: Dict[str, int] = {}
+            self.mappings: Dict[str, Dict[int, int]] = {}
 
-      async def _initialize_index(self, dimension: int):
+      async def _initialize_index(self, index_type : str, dimension: int):
             """Ensure index is initialized."""
             async with self._write_lock:
-                  if self.index is not None:
-                        return
-                  if self.index_path.exists():
-                        self.index = faiss.read_index(str(self.index_path))
-                        self.dimension = self.index.d
-                        mapping_path = self.index_path.with_suffix(".mapping.pkl")
-                        if mapping_path.exists():
-                              with open(mapping_path, "rb") as f:
-                                    self.faiss_to_chunk = pickle.load(f)
-                  else:
-                        self.dimension = dimension
-                        self.index = faiss.IndexFlatIP(dimension)
+                  if index_type not in self.indexes:
+                        index_path = self._get_index_path(index_type)
+                  
+                  
+                        if index_path.exists():
+                              index = faiss.read_index(str(index_path))
+                              self.indexes[index_type] = index
+                              self.dimensions[index_type] = index.d
+                        else:
+                              self.indexes[index_type] = faiss.IndexFlatIP(dimension)
+                              self.dimensions[index_type] = dimension
 
-      async def add_embeddings(self, embeddings: np.ndarray, chunk_ids: List[int]) -> List[int]:
+                  if index_type not in self.mappings:
+                              index_path = self._get_index_path(index_type)
+                              mapping_path = index_path.with_suffix(".mapping.pkl")
+                              if mapping_path.exists():
+                                    with open(mapping_path, "rb") as f:
+                                          self.mappings[index_type] = pickle.load(f)
+                              else:
+                                    self.mappings[index_type] = {}
+                        
+      def _get_index_path(self, index_type: str) -> Path:
+            base = Path(settings.FAISS_INDEX_PATH)
+            return base.parent / f"{index_type}.faiss"
+      
+      async def add_embeddings(self, embeddings: np.ndarray, chunk_ids: List[int], index_type : str  = "text") -> List[int]:
             """Add embeddings using real DB chunk IDs."""
             if len(embeddings) == 0 or len(embeddings) != len(chunk_ids):
                   return []
 
-            await self._initialize_index(embeddings.shape[1])
+            await self._initialize_index(index_type,embeddings.shape[1])
 
             async with self._write_lock:
+                  index = self.indexes[index_type]
+                  mapping = self.mappings.setdefault(index_type, {})
+
                   faiss.normalize_L2(embeddings)
-                  start_id = self.index.ntotal if self.index is not None else 0
-                  self.index.add(embeddings)
+                  start_id = index.ntotal 
+                  index.add(embeddings)
 
                   faiss_ids = list(range(start_id, start_id + len(chunk_ids)))
                   for f_id, c_id in zip(faiss_ids, chunk_ids):
-                        self.faiss_to_chunk[f_id] = c_id
+                        mapping[f_id] = c_id
 
-                  self._save_index()
+                  self._save_index(index_type)
                   return faiss_ids
 
       
-      async def search(self, query_embedding: np.ndarray, k: int = 10) -> List[Tuple[int, float]]:
+      async def search(self, query_embedding: np.ndarray, k: int = 10, index_type: str = "text") -> List[Tuple[int, float]]:
             """Search – thread-safe for reads."""
 
-            await self._initialize_index(query_embedding.shape[0])
+            await self._initialize_index(index_type,query_embedding.shape[0])
+            index = self.indexes.get(index_type)
 
-
-            if self.index is None or self.index.ntotal == 0:
+            if index is None or index.ntotal == 0:
                   return []
-
-            
 
             query_embedding = query_embedding.reshape(1, -1).astype(np.float32)
             faiss.normalize_L2(query_embedding)
 
-            scores, indices = self.index.search(query_embedding, k)
+            scores, indices = index.search(query_embedding, k)
             results = []
             # print("==" * 50)
             # print("FAISS total vectors:", self.total_vectors)
@@ -95,14 +111,17 @@ class FAISSManager:
                         results.append((int(idx), float(score)))
             return results
 
-      def _save_index(self):
+      def _save_index(self, index_type : str):
             """Persist index and mapping."""
-            if self.index is None:
+            index = self.indexes.get(index_type)
+            if index is None:
                   return
-            faiss.write_index(self.index, str(self.index_path))
-            mapping_path = self.index_path.with_suffix(".mapping.pkl")
+            
+            index_path = self._get_index_path(index_type)
+            faiss.write_index(index, str(index_path))
+            mapping_path = index_path.with_suffix(".mapping.pkl")
             with open(mapping_path, "wb") as f:
-                  pickle.dump(self.faiss_to_chunk, f)
+                  pickle.dump(self.mappings[index_type], f)
 
       def get_chunk_id(self, faiss_id: int) -> Optional[int]:
             return self.faiss_to_chunk.get(faiss_id)
@@ -110,9 +129,16 @@ class FAISSManager:
       async def ensure_loaded(self, dimension: int = 384):
             """Public method to ensure index is loaded."""
             await self._initialize_index(dimension)
-      @property
-      def total_vectors(self) -> int:
-            """Safe access to ntotal."""
-            if self.index is None:
+
+      def get_total_vectors(self, index_type: str) -> int:
+            index  = self.indexes.get(index_type)
+            if index is None:
                   return 0
-            return self.index.ntotal
+            return index.ntotal
+      
+      @property
+      def total_vectors(self) -> Dict[str, int]:
+            """Safe access to ntotal."""
+            return {
+                  k : v.ntotal for k , v in self.indexes.items()
+            }

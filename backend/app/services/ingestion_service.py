@@ -177,7 +177,7 @@ class IngestionService:
                   for c in chunks
             ]  
             # 3. Index in vector stores
-            pipeline_result = await self.pipeline.ingest_chunks(document.id, chunk_list_for_pipeline)
+            pipeline_result = await self.pipeline.ingest_test_chunks(document.id, chunk_list_for_pipeline)
 
             return {
                   "document_id": document.id,

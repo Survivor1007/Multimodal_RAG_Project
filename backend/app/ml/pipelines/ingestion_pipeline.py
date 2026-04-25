@@ -55,3 +55,57 @@ class IngestionPipeline:
                   "faiss_vectors": self.faiss_manager.total_vectors,
                   "vectors_added": vectors_added
             }
+      #=========================
+      #TEXT ONLY INGESTION (v2)
+      #=========================
+      async def ingest_test_chunks(
+            self, 
+            document_id:int,
+            chunks:List[Dict[str, Any]],
+      ) -> Dict[str, Any]:
+            """
+                  Clean text only ingestion.
+                  No image handling.
+            """
+
+            if not chunks:
+                  return {
+                        "total_chunks": 0,
+                        "faiss_vectors": self.faiss_manager.total_vectors,
+                        "vectors_added": 0,
+                  }
+            
+            text_chunks = [c for c in chunks if c["chunk_type"] == "text"]
+            if not text_chunks:
+                  return {
+                        "total_chunks": 0,
+                        "faiss_vectors": self.faiss_manager.total_vectors,
+                        "vectors_added": 0,
+                  }
+            
+            text_content = [c["content"] for c in text_chunks]
+            text_ids = [c["id"] for c  in text_chunks]
+
+            vectors_added = 0
+
+            try:
+                  #Generate embeddings
+                  embeddings = await self.text_embedder.embed_text(text_content)
+                  #Store in FAISS
+                  await self.faiss_manager.add_embeddings(embeddings=embeddings, chunk_ids=text_ids, index_type="text")
+                  #Store in BM25
+                  await self.bm25_manager.add_documents(text_content,text_ids)
+
+                  vectors_added = len(text_content)
+            except Exception as e :
+                  print(f"Text embeddings failed: {str(e)}")
+                  traceback.print_exc()
+            
+            return {
+                  "total_chunks": len(text_chunks),
+                  "faiss_vectors": self.faiss_manager.get_total_vectors("text"),
+                  "vectors_added": vectors_added,
+            }
+
+
+
