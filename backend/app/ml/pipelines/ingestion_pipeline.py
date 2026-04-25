@@ -58,7 +58,7 @@ class IngestionPipeline:
       #=========================
       #TEXT ONLY INGESTION (v2)
       #=========================
-      async def ingest_test_chunks(
+      async def ingest_text_chunks(
             self, 
             document_id:int,
             chunks:List[Dict[str, Any]],
@@ -106,6 +106,56 @@ class IngestionPipeline:
                   "faiss_vectors": self.faiss_manager.get_total_vectors("text"),
                   "vectors_added": vectors_added,
             }
+      #==================================
+      #PIPELINE FOR IMAGE INGESTION (v2)
+      #==================================
+      async def ingest_image_chunks(
+            self, 
+            document_id:int,
+            chunks: List[Dict[str, Any]],
+      ) -> Dict[str, Any]:
+            """
+                  Clean image-only ingestion for v2
+            """
+            if not chunks:
+                  return {
+                        "total_chunks": 0,
+                        "faiss_vectors": self.faiss_manager.get_total_vectors("image"),
+                        "vectors_added": 0,
+                  }
+            image_chunks = [c for c in chunks if c["chunk_type"] == "image"]            
+            if not image_chunks:
+                  return {
+                        "total_chunks": 0,
+                        "faiss_vectors": self.faiss_manager.get_total_vectors("image"),
+                        "vectors_added": 0,
+                  }
+            
+            vectors_added = 0
+            for chunk in image_chunks:
+                  img_path = chunk.get("metadata", {}).get("path")
+                  if not img_path:
+                        continue
 
-
-
+                  try:
+                        #Generate embedding
+                        emb = await self.image_embedder.embed_image([img_path])
+                        if emb.shape[0] == 0:
+                              continue
+                        #Store in FAISS (image index)
+                        await self.faiss_manager.add_embeddings(
+                              embeddings=emb,
+                              chunk_ids=[chunk["id"]],
+                              index_type="image",
+                        )
+                        vectors_added += 1
+                  except Exception as e:
+                        print(f"Failed image embedding: {str(e)}")
+                        traceback.print_exc()
+                        continue
+            
+            return {
+                  "total_chunks": len(image_chunks),
+                  "faiss_vectors": self.faiss_manager.get_total_vectors("image"),
+                  "vectors_added": vectors_added,
+            }

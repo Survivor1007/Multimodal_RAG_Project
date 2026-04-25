@@ -177,7 +177,7 @@ class IngestionService:
                   for c in chunks
             ]  
             # 3. Index in vector stores
-            pipeline_result = await self.pipeline.ingest_test_chunks(document.id, chunk_list_for_pipeline)
+            pipeline_result = await self.pipeline.ingest_text_chunks(document.id, chunk_list_for_pipeline)
 
             return {
                   "document_id": document.id,
@@ -188,5 +188,84 @@ class IngestionService:
                   "vectors_added": pipeline_result["vectors_added"],
                   "message": "Document ingested and indexed successfully."
             }
+      #========================
+      #INGESTION OF IMAGE ONLY
+      #========================
+      async def ingest_image(
+            self,
+            db: AsyncSession,
+            title: str,
+            file_name : str, 
+            file_type : str,
+            image_path: str,
+            user_id:int | None = None,
+      ) -> Dict[str, Any]:
+            """
+                  Image only ingestion for v2
+            """
 
-            
+            safe_content = file_name or "image_upload"
+
+            document, already_exists = await self.document_repo.get_or_create_by_content(
+                  session=db,
+                  title=title,
+                  content=safe_content,
+                  file_name=file_name,
+                  file_type=file_type,
+                  source_url=None,
+                  user_id=user_id
+            ) 
+
+            await db.flush()
+
+            if already_exists:
+                  return{
+                        "document_id": document.id,
+                        "title": title,
+                        "status": "skipped",
+                        "chunks_created": 0,
+                        "message": "Image already exists.Skipping re-ingestion"
+                  }
+            #=====================
+            #IMAGE CHUNK CREATION
+            #=====================
+            chunk = Chunk(
+                  document_id=document.id,
+                  chunk_index=0,
+                  content=image_path,
+                  chunk_type="image",
+                  metadata_json={
+                        "source": "image",
+                        "path": image_path,
+                  },
+            )
+
+            db.add(chunk)
+
+            await db.commit()
+            await db.refresh(document)
+
+            #Prepare for pipeline
+            chunk_list_for_pipeline = [
+                  {
+                        "id": chunk.id,
+                        "content": chunk.content,
+                        "chunk_type": chunk.chunk_type,
+                        "metadata": chunk.metadata_json or {},
+                  }
+            ]
+            #============================
+            #PIPELINE CALL (IMAGE ONLY)
+            #============================
+            pipeline_result   = await self.pipeline.ingest_image_chunks(
+                  document.id,chunk_list_for_pipeline
+            )
+            return {
+                  "document_id": document.id,
+                  "title": title,
+                  "status": "success",
+                  "chunks_created": 1,
+                  "faiss_vectors_total": self.pipeline.faiss_manager.get_total_vectors("image"),
+                  "vectors_added": pipeline_result["vectors_added"],
+                  "message": "Image ingested and indexed successfully."
+            }
