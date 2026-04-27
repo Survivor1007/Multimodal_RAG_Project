@@ -28,7 +28,24 @@ class ImageEmbedder(BaseEmbedder):
                         self._dimension = self._model.config.projection_dim
 
       async def embed_text(self, texts: List[str]) -> np.ndarray:
-            raise NotImplementedError("Use TextEmbedder for text.")
+            await self._load_model()
+
+            loop = asyncio.get_running_loop()
+
+            def _process():
+                  inputs = self._processor(text = texts, return_tensors = "pt", padding = True).to(self.device)
+                  with torch.no_grad():
+                        outputs = self._model.get_text_features(**inputs)
+                        if hasattr(outputs, "pooler_output"):
+                              features = outputs.pooler_output
+                        else:
+                              features = outputs
+                        features = features / features.norm(dim = 1, keepdim=True)
+                  return features.cpu().numpy()
+
+            return await loop.run_in_executor(None, _process)
+
+            
 
       async def embed_image(self, images: List[Union[str, Image.Image]]) -> np.ndarray:
             if not images:
