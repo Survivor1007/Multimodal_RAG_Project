@@ -59,7 +59,6 @@ async def upload_image(
 
             if "." in file_name:
                   file_type = file_name.split(".")[-1]
-                  file_name =file_name.split(".")[-2]
             else:
                   file_type = "unknown"
             #===================
@@ -74,6 +73,8 @@ async def upload_image(
             #===================
             #Call service layer
             #===================
+            if "." in file_name:
+                  file_name =file_name.split(".")[-2]
             result = await ingestion_service.ingest_image(
                   db = db,
                   title = title,

@@ -91,13 +91,23 @@ class FAISSManager:
       async def search(self, query_embedding: np.ndarray, k: int = 10, index_type: str = "text") -> List[Tuple[int, float]]:
             """Search – thread-safe for reads."""
 
-            await self._initialize_index(index_type,query_embedding.shape[0])
+            dim = query_embedding.shape[-1]
+            await self._initialize_index(index_type,dim)
             index = self.indexes.get(index_type)
+            mapping = self.mappings.get(index_type, {})
 
             if index is None or index.ntotal == 0:
                   return []
 
-            query_embedding = query_embedding.reshape(1, -1).astype(np.float32)
+            if index.d != dim:
+                  raise ValueError(
+                        f"Dimension mismatch: index={index.d}, query={dim}"
+                  )
+            
+            if query_embedding.ndim == 1:
+                  query_embedding = query_embedding.reshape(1, -1)
+            query_embedding = query_embedding.astype(np.float32)
+            #NORMALIZE FOR COSINE SIMILARITY
             faiss.normalize_L2(query_embedding)
 
             scores, indices = index.search(query_embedding, k)

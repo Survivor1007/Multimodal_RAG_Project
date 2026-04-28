@@ -42,6 +42,16 @@ class HybridRetriever:
                         )
             except Exception as e:
                   print(f"Image retrieval failed: {str(e)}")
+
+            print("=" * 50)
+            print(f"SEMANTIC RESULTS: \n {sem_results}")
+            print("=" * 50)
+            print("=" * 50)
+            print(f"KEYWORD RESULTS: \n {kw_results}")
+            print("=" * 50)
+            print("=" * 50)
+            print(f"IMAGE RESULTS: \n {image_results}")
+            print("=" * 50)
             #=============
             #SCORE FUSION
             #=============
