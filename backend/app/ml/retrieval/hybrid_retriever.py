@@ -57,11 +57,25 @@ class HybridRetriever:
             #=============
             score_map: dict[int, float] = {}
 
+            def normalize(scores):
+                  if not scores:
+                        return []
+                  vals = [s for _, s in scores]
+                  min_s, max_s = min(vals), max(vals)
+                  if max_s == min_s:
+                        return [(cid, 1.0) for cid, _ in scores]
+                  return [(cid, (s - min_s) / (max_s - min_s)) for cid, s in scores]
+            
+            sem_results = normalize(sem_results)
+            kw_results = normalize(kw_results)
+            image_results = normalize(image_results)
+            
             for chunk_id, score in sem_results:
                   score_map[chunk_id] = score_map.get(chunk_id, 0.0) + score * 0.7
 
             for chunk_id, score in kw_results:
-                  score_map[chunk_id] = score_map.get(chunk_id, 0.0) + score * 0.3
+                  score_map[chunk_id] = score_map.get(chunk_id, 0.0) + score * 0.6
+
 
             for chunk_id, score in image_results:
                   score_map[chunk_id] = score_map.get(chunk_id, 0.0) + score * 0.5

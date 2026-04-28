@@ -22,12 +22,15 @@ class BM25Manager:
       def __init__(self):
             if self.__initialized:
                   return 
+            
             self.index_path = Path(settings.BM25_INDEX_PATH)
             self.index_path.parent.mkdir(parents=True, exist_ok=True)
             self.bm25: Optional[BM25Okapi] = None
             self.chunk_ids: List[int] = []          # parallel list to corpus
             self._write_lock = asyncio.Lock()
             self.__initialized = True
+            self.corpus: List[str] = []
+            self.load_index()
       
       async def add_documents(self, documents: List[str], chunk_ids: List[int]):
             """Add documents to BM25 corpus using real DB chunk IDs."""
@@ -35,30 +38,30 @@ class BM25Manager:
                   return
 
             async with self._write_lock:
-                  # Always rebuild from full corpus (safe and simple for production-grade hackathon project)
-                  if self.bm25 is None:
-                        # First time
-                        tokenized = [doc.lower().split() for doc in documents]
-                        self.bm25 = BM25Okapi(tokenized)
-                        self.chunk_ids = list(chunk_ids)
-                  else:
-                        # Append and rebuild
-                        self.chunk_ids.extend(chunk_ids)
-                        all_documents = []  # We would need to keep original corpus - simplified here
-                        # For Phase 4 we keep it simple: rebuild only from new + previous known
-                        # In real production we would persist full corpus, but for now we rebuild incrementally
+                  # if self.bm25 is None:
+                  #       # First time
+                  #       tokenized = [doc.lower().split() for doc in documents]
+                  #       self.bm25 = BM25Okapi(tokenized)
+                  #       self.chunk_ids = list(chunk_ids)
+                  # else:
+                  #       # Append and rebuild
+                  #       self.chunk_ids.extend(chunk_ids)
+                  #       all_documents = [] 
 
-                        tokenized_new = [doc.lower().split() for doc in documents]
-                        # Note: Full persistence of corpus will be improved in Phase 7 if needed
-                        # Current simple approach: append to existing tokenized corpus
-                        if hasattr(self.bm25, 'doc_len'):
-                              # Rebuild from scratch with all known documents (safest)
-                              all_tokenized = [doc.lower().split() for doc in documents]  # placeholder - will improve
-                              self.bm25 = BM25Okapi(all_tokenized)
-                        else:
-                              self.bm25 = BM25Okapi(tokenized_new)
+                  #       tokenized_new = [doc.lower().split() for doc in documents]
+                  #       if hasattr(self.bm25, 'doc_len'):
+                  #             all_tokenized = [doc.lower().split() for doc in documents] 
+                  #             self.bm25 = BM25Okapi(all_tokenized)
+                  #       else:
+                  #             self.bm25 = BM25Okapi(tokenized_new)
 
-                        self.chunk_ids = list(chunk_ids)  # temporary - will be fixed in next phase if needed
+                  #       self.chunk_ids = list(chunk_ids)  # temporary - will be fixed in next phase if needed
+                  self.corpus.extend(documents)
+                  self.chunk_ids.extend(chunk_ids)
+
+                  # Rebuild BM25 from full corpus
+                  tokenized = [doc.lower().split() for doc in self.corpus]
+                  self.bm25 = BM25Okapi(tokenized)
 
                   self._save_index()
 
@@ -81,4 +84,14 @@ class BM25Manager:
       def _save_index(self):
         """Save current state"""
         with open(self.index_path, "wb") as f:
-            pickle.dump({"bm25": self.bm25, "chunk_ids": self.chunk_ids}, f)
+            pickle.dump({"bm25": self.bm25, "chunk_ids": self.chunk_ids, "corpus" : self.corpus}, f)
+      
+      def load_index(self):
+            if not self.index_path.exists():
+                  return
+
+            with open(self.index_path, "rb") as f:
+                  data = pickle.load(f)
+                  self.bm25 = data.get("bm25")
+                  self.chunk_ids = data.get("chunk_ids", [])
+                  self.corpus = data.get("corpus", [])

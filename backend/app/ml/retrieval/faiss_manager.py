@@ -118,7 +118,8 @@ class FAISSManager:
 
             for idx, score in zip(indices[0], scores[0]):
                   if idx != -1:
-                        results.append((int(idx), float(score)))
+                        chunk_id = mapping.get(int(idx))
+                        results.append((chunk_id, float(score)))
             return results
 
       def _save_index(self, index_type : str):

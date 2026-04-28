@@ -13,13 +13,8 @@ class SemanticRetriever:
             """Return (chunk_id, semantic_score)"""
             embedding = await self.embedder.embed_text([query])
 
-            faiss_results = await self.faiss_manager.search(embedding[0], k)
-
             results = []
-            for faiss_id,score in faiss_results:
-                  chunk_id = self.faiss_manager.get_chunk_id(faiss_id=faiss_id)
-                  if chunk_id is not None:
-                        results.append((chunk_id, score))
+            results = await self.faiss_manager.search(embedding[0], k)
 
             
             return results
