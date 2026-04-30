@@ -64,55 +64,69 @@ class FAISSManager:
                                           self.mappings[index_type] = pickle.load(f)
                               else:
                                     self.mappings[index_type] = {}
-                  print("\n======DEBUG after adding embeddings=====\n")
-                  print(f"[INIT] {index_type} -> index size: {self.indexes[index_type].ntotal}, mapping size: {len(self.mappings[index_type])}")
-                  print("\n======DEBUG=====\n")
                         
       def _get_index_path(self, index_type: str) -> Path:
             base = Path(settings.FAISS_INDEX_PATH)
             return base.parent / f"{index_type}.faiss"
       
-      async def add_embeddings(self, embeddings: np.ndarray, chunk_ids: List[int], index_type : str  = "text") -> List[int]:
+      async def add_embeddings(
+            self,
+            embeddings: np.ndarray, 
+            chunk_ids: List[int], 
+            index_type : str  = "text"
+      ) -> List[int]:
             """Add embeddings using real DB chunk IDs."""
+
             if len(embeddings) == 0 or len(embeddings) != len(chunk_ids):
                   return []
 
+            if any(cid is None for cid in chunk_ids):#Hard validation for None chunk_id
+                  raise ValueError(f"[FAISS:{index_type}] Found None chunk_id during ingestion")
+            
             await self._initialize_index(index_type,embeddings.shape[1])
 
             async with self._write_lock:
                   index = self.indexes[index_type]
                   mapping = self.mappings.setdefault(index_type, {})
 
+                  embeddings = embeddings.astype(np.float32)
                   faiss.normalize_L2(embeddings)
+
                   start_id = index.ntotal 
                   index.add(embeddings)
 
                   faiss_ids = list(range(start_id, start_id + len(chunk_ids)))
+
                   for f_id, c_id in zip(faiss_ids, chunk_ids):
                         mapping[f_id] = c_id
                   
+                  #==== Invariant Check ====
+                  if index.ntotal != len(mapping):
+                        raise RuntimeError(
+                              f"[FAISS:{index_type}] Index Size ({index.ntotal}) != Mapping Size ({len(mapping)})"
+                        )
                   
-                  print("\n======DEBUG after adding embeddings=====\n")
-                  print("Adding mapping:", list(zip(faiss_ids, chunk_ids))[:5])
-                  print("\n======DEBUG=====\n")
-
                   self._save_index(index_type)
 
-                  print("\n======DEBUG after saving=====\n")
-                  print("Saved mapping size:", len(self.mappings[index_type]))
-                  print("\n======DEBUG=====\n")
-
+                  print(f"[FAISS:{index_type}] Added ({len(chunk_ids)}) |  Total : ({index.ntotal})")
 
                   return faiss_ids
 
       
-      async def search(self, query_embedding: np.ndarray, k: int = 10, index_type: str = "text") -> List[Tuple[int, float]]:
+      async def search(
+            self, 
+            query_embedding: np.ndarray, 
+            k: int = 10, 
+            index_type: str = "text"
+      ) -> List[Tuple[int, float]]:
+            
             """Search – thread-safe for reads."""
 
             dim = query_embedding.shape[-1]
             await self._initialize_index(index_type,dim)
+
             index = self.indexes.get(index_type)
-            mapping = self.mappings.get(index_type, {})
+            mapping = dict(self.mappings.get(index_type, {}))
 
             if index is None or index.ntotal == 0:
                   return []
@@ -124,25 +138,21 @@ class FAISSManager:
             
             if query_embedding.ndim == 1:
                   query_embedding = query_embedding.reshape(1, -1)
+
             query_embedding = query_embedding.astype(np.float32)
-            #NORMALIZE FOR COSINE SIMILARITY
             faiss.normalize_L2(query_embedding)
 
-            scores, indices = index.search(query_embedding, k)
-            results = []
-            # print("==" * 50)
-            # print("FAISS total vectors:", self.total_vectors)
-            # print("==" * 50)
+            print(f"[FAISS:{index_type}] Search k = {k} | Index Size = {index.ntotal}")
 
+            scores, indices = index.search(query_embedding, k)
+
+            results = []
             for idx, score in zip(indices[0], scores[0]):
                   if idx != -1:
                         chunk_id = mapping.get(int(idx))
-                        results.append((chunk_id, float(score)))
+                        if chunk_id is not None:
+                              results.append((chunk_id, float(score)))
 
-            print("\n====DEBUG====\n")
-            print("FAISS indices:", indices[0][:5])
-            print("Mapping keys sample:", list(mapping.keys())[:5])
-            print("\n====DEBUG====\n")
             return results
 
       def _save_index(self, index_type : str):
