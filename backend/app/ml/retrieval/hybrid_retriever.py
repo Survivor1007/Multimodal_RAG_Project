@@ -5,6 +5,7 @@ from .semantic_retriever import SemanticRetriever
 from .keyword_retriever import KeywordRetriever
 from ..embeddings.image_embedder import ImageEmbedder
 from .faiss_manager import FAISSManager
+from ..ranking.rrf_ranker import RRF_Ranker
 
 class HybridRetriever:
       def __init__(self):
@@ -12,13 +13,14 @@ class HybridRetriever:
             self.keyword = KeywordRetriever()
             self.image_embedder = ImageEmbedder()
             self.faiss_manager = FAISSManager()
+            self.rrf_ranker = RRF_Ranker()
 
       async def retrieve(self, query: str, k: int = 10) -> List[Tuple[int, float]]:
             """
-                  Hybrid retriever:
+                  ### Hybrid retriever:
                    - Semantic retriever 
-                   -Keyword retriever
-                   -Image retriever (CLIP)
+                   - Keyword retriever
+                   - Image retriever (CLIP)
             """
             #===============
             #TEXT + KEYWORD 
@@ -43,44 +45,33 @@ class HybridRetriever:
             except Exception as e:
                   print(f"Image retrieval failed: {str(e)}")
 
-            print("=" * 50)
-            print(f"SEMANTIC RESULTS: \n {sem_results}")
-            print("=" * 50)
-            print("=" * 50)
-            print(f"KEYWORD RESULTS: \n {kw_results}")
-            print("=" * 50)
-            print("=" * 50)
-            print(f"IMAGE RESULTS: \n {image_results}")
-            print("=" * 50)
+            sem_results = [(cid, s) for cid, s in sem_results if s > 0.3]
+            image_results = [(cid, s) for cid, s in image_results if s > 0.25]
+            
+            print("\n=== DEBUG ===\n")
+            print("SEM:", sem_results[:5])
+            print("KW:", kw_results[:5])
+            print("IMG:", image_results[:5])
+            print("\n=== DEBUG ===\n")
             #=============
             #SCORE FUSION
             #=============
             score_map: dict[int, float] = {}
-
-            def normalize(scores):
-                  if not scores:
-                        return []
-                  vals = [s for _, s in scores]
-                  min_s, max_s = min(vals), max(vals)
-                  if max_s == min_s:
-                        return [(cid, 1.0) for cid, _ in scores]
-                  return [(cid, (s - min_s) / (max_s - min_s)) for cid, s in scores]
             
-            sem_results = normalize(sem_results)
-            kw_results = normalize(kw_results)
-            image_results = normalize(image_results)
+            def rrf_fusion(weighted_lists, k=60):
+                  score_map: dict[int, float] = {}
+
+                  for results, weight in weighted_lists:
+                        for rank, (chunk_id, _) in enumerate(results, start=1):
+                              score = weight * (1 / (k + rank))
+                              score_map[chunk_id] = score_map.get(chunk_id, 0.0) + score
+
+                  return score_map
             
-            for chunk_id, score in sem_results:
-                  score_map[chunk_id] = score_map.get(chunk_id, 0.0) + score * 0.7
-
-            for chunk_id, score in kw_results:
-                  score_map[chunk_id] = score_map.get(chunk_id, 0.0) + score * 0.6
-
-
-            for chunk_id, score in image_results:
-                  score_map[chunk_id] = score_map.get(chunk_id, 0.0) + score * 0.5
-
-
-            # Sort and take top-k
+            score_map = rrf_fusion([
+                  (sem_results, 1.0),
+                  (kw_results, 0.5),
+                  (image_results, 0.3),
+            ])
             sorted_results = sorted(score_map.items(), key=lambda x: x[1], reverse=True)[:k]
             return sorted_results

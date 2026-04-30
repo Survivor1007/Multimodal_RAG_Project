@@ -29,7 +29,7 @@ class ExplainabilityModule:
             hybrid_results = await self.hybrid_retriever.retrieve(query, k * 3)
 
             # Step 2: RRF ranking
-            rrf_results = await self.rrf_ranker.rank(hybrid_results, query)
+            rrf_results = await self.rrf_ranker.rank([hybrid_results], query)
             #==========================
             #Step 3: EXtract chunk ids
             #==========================

@@ -25,6 +25,10 @@ class QueryService:
             # Get ranked chunk IDs from hybrid retrieval
             ranked_results = await self.hybrid_retriever.retrieve(query, k * 4)
 
+            print("=" * 50)
+            print("RESULT RETURNED FROM HYBRID RETRIEVAL\n")
+            print(ranked_results)
+            print("=" * 50)
             if not ranked_results:
                   return []
 
@@ -65,6 +69,6 @@ class QueryService:
                         break
             
             if use_reranker and results:
-                  results = await self.reranker.rank(results, query=query)
+                  results = await self.reranker.rank([results], query=query)
             
             return results

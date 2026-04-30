@@ -151,7 +151,9 @@ class IngestionService:
             chunk_dicts = self.pipeline.chunker.chunk_text(
                   content, {"title": title}
             )
-
+            # print("=" * 50)
+            # print(f"The chunks returned from the chunk_text function \n{chunk_dicts}")
+            # print("=" * 50)
             chunks = []
             for cd in chunk_dicts:
                   chunk = Chunk(
@@ -166,7 +168,7 @@ class IngestionService:
             
             await db.commit()
             await db.refresh(document)
-
+            
             chunk_list_for_pipeline = [
                   {
                         "id": c.id,
@@ -178,6 +180,7 @@ class IngestionService:
             ]  
             # 3. Index in vector stores
             pipeline_result = await self.pipeline.ingest_text_chunks(document.id, chunk_list_for_pipeline)
+
 
             return {
                   "document_id": document.id,
@@ -242,6 +245,7 @@ class IngestionService:
 
             db.add(chunk)
 
+            
             await db.commit()
             await db.refresh(document)
 
@@ -260,6 +264,8 @@ class IngestionService:
             pipeline_result   = await self.pipeline.ingest_image_chunks(
                   document.id,chunk_list_for_pipeline
             )
+
+            
             return {
                   "document_id": document.id,
                   "title": title,

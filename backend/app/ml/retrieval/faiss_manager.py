@@ -36,10 +36,14 @@ class FAISSManager:
             self.indexes: Dict[str, faiss.IndexFlatIP] = {}
             self.dimensions: Dict[str, int] = {}
             self.mappings: Dict[str, Dict[int, int]] = {}
+            
 
       async def _initialize_index(self, index_type : str, dimension: int):
             """Ensure index is initialized."""
+
+            
             async with self._write_lock:
+                  #=======INDEX=========
                   if index_type not in self.indexes:
                         index_path = self._get_index_path(index_type)
                   
@@ -51,7 +55,7 @@ class FAISSManager:
                         else:
                               self.indexes[index_type] = faiss.IndexFlatIP(dimension)
                               self.dimensions[index_type] = dimension
-
+                  #====== MAPPING ============
                   if index_type not in self.mappings:
                               index_path = self._get_index_path(index_type)
                               mapping_path = index_path.with_suffix(".mapping.pkl")
@@ -60,6 +64,9 @@ class FAISSManager:
                                           self.mappings[index_type] = pickle.load(f)
                               else:
                                     self.mappings[index_type] = {}
+                  print("\n======DEBUG after adding embeddings=====\n")
+                  print(f"[INIT] {index_type} -> index size: {self.indexes[index_type].ntotal}, mapping size: {len(self.mappings[index_type])}")
+                  print("\n======DEBUG=====\n")
                         
       def _get_index_path(self, index_type: str) -> Path:
             base = Path(settings.FAISS_INDEX_PATH)
@@ -83,8 +90,19 @@ class FAISSManager:
                   faiss_ids = list(range(start_id, start_id + len(chunk_ids)))
                   for f_id, c_id in zip(faiss_ids, chunk_ids):
                         mapping[f_id] = c_id
+                  
+                  
+                  print("\n======DEBUG after adding embeddings=====\n")
+                  print("Adding mapping:", list(zip(faiss_ids, chunk_ids))[:5])
+                  print("\n======DEBUG=====\n")
 
                   self._save_index(index_type)
+
+                  print("\n======DEBUG after saving=====\n")
+                  print("Saved mapping size:", len(self.mappings[index_type]))
+                  print("\n======DEBUG=====\n")
+
+
                   return faiss_ids
 
       
@@ -120,6 +138,11 @@ class FAISSManager:
                   if idx != -1:
                         chunk_id = mapping.get(int(idx))
                         results.append((chunk_id, float(score)))
+
+            print("\n====DEBUG====\n")
+            print("FAISS indices:", indices[0][:5])
+            print("Mapping keys sample:", list(mapping.keys())[:5])
+            print("\n====DEBUG====\n")
             return results
 
       def _save_index(self, index_type : str):

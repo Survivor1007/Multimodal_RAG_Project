@@ -38,24 +38,6 @@ class BM25Manager:
                   return
 
             async with self._write_lock:
-                  # if self.bm25 is None:
-                  #       # First time
-                  #       tokenized = [doc.lower().split() for doc in documents]
-                  #       self.bm25 = BM25Okapi(tokenized)
-                  #       self.chunk_ids = list(chunk_ids)
-                  # else:
-                  #       # Append and rebuild
-                  #       self.chunk_ids.extend(chunk_ids)
-                  #       all_documents = [] 
-
-                  #       tokenized_new = [doc.lower().split() for doc in documents]
-                  #       if hasattr(self.bm25, 'doc_len'):
-                  #             all_tokenized = [doc.lower().split() for doc in documents] 
-                  #             self.bm25 = BM25Okapi(all_tokenized)
-                  #       else:
-                  #             self.bm25 = BM25Okapi(tokenized_new)
-
-                  #       self.chunk_ids = list(chunk_ids)  # temporary - will be fixed in next phase if needed
                   self.corpus.extend(documents)
                   self.chunk_ids.extend(chunk_ids)
 
