@@ -2,13 +2,15 @@ from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from collections import defaultdict
 import hashlib
-
+import logging
 from ..db.repositories.base_repository import BaseRepository
 from ..db.repositories.document_repository import DocumentRepository
 from ..db.models.chunk import Chunk
 from ..ml.retrieval.hybrid_retriever import HybridRetriever
 from ..ml.ranking.rrf_ranker import RRF_Ranker
 from ..ml.ranking.explainability import ExplainabilityModule
+
+logger = logging.getLogger(__name__)
 
 class QueryService:
       """Handles search and retrieval logic"""
@@ -25,10 +27,10 @@ class QueryService:
             # Get ranked chunk IDs from hybrid retrieval
             ranked_results = await self.hybrid_retriever.retrieve(query, k * 4)
 
-            print("=" * 50)
-            print("RESULT RETURNED FROM HYBRID RETRIEVAL\n")
-            print(ranked_results)
-            print("=" * 50)
+            
+            
+            logger.debug(f"[QueryService] Hybrid Results : {ranked_results}")
+            
             if not ranked_results:
                   return []
 

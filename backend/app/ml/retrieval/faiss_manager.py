@@ -5,9 +5,11 @@ from typing import List, Tuple, Optional, Dict
 import pickle
 from pathlib import Path
 import asyncio
+import structlog
 
 from ...core.config import settings
 
+logger = structlog.get_logger()
 
 class FAISSManager:
       """Singleton + thread-safe FAISS manager (shared across ingestion & search)."""
@@ -108,7 +110,13 @@ class FAISSManager:
                   
                   self._save_index(index_type)
 
-                  print(f"[FAISS:{index_type}] Added ({len(chunk_ids)}) |  Total : ({index.ntotal})")
+                  # logger.info(f"[FAISS:{index_type}] Added ({len(chunk_ids)}) |  Total : ({index.ntotal})")
+                  logger.info(
+                        "FAISS Index updated",
+                        index_type = index_type,
+                        added = len(chunk_ids),
+                        total = index.ntotal
+                  )
 
                   return faiss_ids
 
@@ -142,7 +150,14 @@ class FAISSManager:
             query_embedding = query_embedding.astype(np.float32)
             faiss.normalize_L2(query_embedding)
 
-            print(f"[FAISS:{index_type}] Search k = {k} | Index Size = {index.ntotal}")
+            # logger.info(f"[FAISS:{index_type}] Search k = {k} | Index Size = {index.ntotal}")
+            logger.info(
+                  "FAISS search",
+                  index_type = index_type,
+                  k = k,
+                  index_size = index.ntotal
+            )
+
 
             scores, indices = index.search(query_embedding, k)
 
