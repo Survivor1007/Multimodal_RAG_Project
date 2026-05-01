@@ -11,6 +11,20 @@ def setup_logging():
 
       timestamper = structlog.processors.TimeStamper(fmt="%H:%M:%S")
 
+      def color(text: str, code : str) -> str:
+            RESET = "\033[0m"
+            return f"{code}{text}{RESET}"
+      
+      COLORS = {
+            "grey": "\033[90m",
+            "green": "\033[32m",
+            "yellow": "\033[33m",
+            "red": "\033[31m",
+            "bold_red": "\033[1;31m",
+            "blue": "\033[34m",
+            "white": "\033[37m",
+      }     
+      
       # ==== 🎨 Custom level styling ====
       def add_emoji(_, __, event_dict):
             level =event_dict.get("level", event_dict.get("level_name", "")).lower()
@@ -24,15 +38,33 @@ def setup_logging():
             }
 
             event_dict["level_display"] = f"{emoji_map.get(level, '')} {level.upper()}"
+            event_dict["raw_level"] = level.upper()
+
             return event_dict
 
+      def get_color_level(level : str):
+            return {
+                  "DEBUG": COLORS["grey"],
+                  "INFO": COLORS["green"],
+                  "WARNING": COLORS["yellow"],
+                  "ERROR": COLORS["red"],
+                  "CRITICAL": COLORS["bold_red"],
+            }.get(level, COLORS["white"])
+      
       def custom_console_renderer(_, __, event_dict):
             ts = event_dict.get("timestamp", "")
-            level = event_dict.get("level_display", "")
+            level_display = event_dict.get("level_display", "")
+            raw_level = event_dict.get("raw_level", "INFO")
             logger = event_dict.get("logger", "")
             msg = event_dict.get("event", "")
 
-            return f"{level} | {ts} | {logger} | {msg}"
+            # === Apply colors ===
+            level_colored = color(level_display, get_color_level(raw_level))
+            ts_colored = color(ts, COLORS["grey"])
+            logger_colored = color(logger, COLORS["blue"])
+            msg_colored = color(msg, COLORS["white"])
+
+            return f"{level_colored} | {ts_colored} | {logger_colored} | {msg_colored}"
       
       def clean_event_dict(_, __, event_dict):
             event_dict.pop("level", None)
@@ -83,16 +115,7 @@ def setup_logging():
             root_logger.addHandler(file_handler)
 
       root_logger.setLevel(settings.LOG_LEVEL)
-
-      # logging.basicConfig(
-      #       format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
-      #       level=settings.LOG_LEVEL,
-      #       handlers=[ 
-      #             logging.FileHandler(log_file_path),
-      #             logging.StreamHandler()
-      #       ],        
-      # )
-
+      
       # ==== Reduce Noise from libraries ====
       logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
       logging.getLogger("sqlalchemy.engine").propagate = False
