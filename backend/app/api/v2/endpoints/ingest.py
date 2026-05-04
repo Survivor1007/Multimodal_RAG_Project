@@ -6,7 +6,7 @@ import shutil
 
 from ....services.ingestion_service import IngestionService
 from ....core.dependencies import get_db
-from ....utils.file_handlers import extract_text_from_upload
+from ....utils.file_handlers import extract_text_from_upload,save_upload_file
 from ....core.exceptions import RAGException
 
 api_router = APIRouter(tags=["upload"])
@@ -27,11 +27,12 @@ async def upload_file(
       file_name = file.filename or "unknown"
       if "." in file_name:
             file_type = file_name.split(".")[-1]
-            file_name = file_name.split(".")[-2]
       else:
             file_type = "unknown"
       
-      extracted_text: str = await extract_text_from_upload(file, file_type)
+      file_path = await save_upload_file(file.file, file.filename)
+
+      extracted_text: str = await extract_text_from_upload(file_path, file_type)
 
       result = await ingestion_service.ingest_file(
             db= db,
