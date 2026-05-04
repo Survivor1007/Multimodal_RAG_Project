@@ -1,5 +1,7 @@
 from typing import List, Dict, Any
 import traceback
+import time 
+import structlog
 
 from ..chunking.document_chunker import DocumentChunker
 from ..embeddings.text_embedder import TextEmbedder
@@ -7,6 +9,7 @@ from ..embeddings.image_embedder import ImageEmbedder
 from ..retrieval.faiss_manager import FAISSManager
 from ..retrieval.bm25_manager import BM25Manager
 
+logger = structlog.get_logger()
 
 class IngestionPipeline:
       """DB-first ingestion: chunks saved first → real IDs → embeddings → vector stores."""
@@ -83,23 +86,47 @@ class IngestionPipeline:
                         "vectors_added": 0,
                   }
             
+            start = time.time()
             text_content = [c["content"] for c in text_chunks]
             text_ids = [c["id"] for c  in text_chunks]
+
+            BATCH_SIZE = 32
 
             vectors_added = 0
 
             try:
-                  #Generate embeddings
-                  embeddings = await self.text_embedder.embed_text(text_content)
-                  #Store in FAISS
-                  await self.faiss_manager.add_embeddings(embeddings=embeddings, chunk_ids=text_ids, index_type="text")
-                  #Store in BM25
-                  await self.bm25_manager.add_documents(text_content,text_ids)
+                  for i in range(0, len(text_content), BATCH_SIZE):
+                        batch_texts = text_content[i: i + BATCH_SIZE]
+                        batch_ids = text_ids[i : i + BATCH_SIZE]
 
-                  vectors_added = len(text_content)
+                        # Generate embeddings
+                        embeddings = await self.text_embedder.embed_text(batch_texts)
+
+                        # Store in FAISS
+                        await self.faiss_manager.add_embeddings(
+                              embeddings=embeddings, 
+                              chunk_ids=batch_ids, 
+                              index_type="text",
+                              save = False,
+                        )
+
+                        # Store in BM25
+                        await self.bm25_manager.add_documents(batch_texts, batch_ids)
+
+                        vectors_added += len(batch_texts)
+
+                        logger.info(
+                              f"Batch Processed",
+                              size = len(batch_texts),
+                              time = time.time() - start,
+                        )
+                  
+                  await self.faiss_manager.save_index("text")
+
             except Exception as e :
                   print(f"Text embeddings failed: {str(e)}")
                   traceback.print_exc()
+            
             
             return {
                   "total_chunks": len(text_chunks),
@@ -131,28 +158,53 @@ class IngestionPipeline:
                         "vectors_added": 0,
                   }
             
-            vectors_added = 0
+            valid_paths = []
+            valid_ids = []
+            
+
             for chunk in image_chunks:
                   img_path = chunk.get("metadata", {}).get("path")
-                  if not img_path:
-                        continue
+                  if img_path:
+                        valid_paths.append(img_path)
+                        valid_ids.append(chunk["id"])
+                  
+            if not valid_paths:
+                  return {
+                        "total_chunks": len(image_chunks),
+                        "faiss_vectors": self.faiss_manager.get_total_vectors("image"),
+                        "vectors_added": 0,
+                  }
 
-                  try:
-                        #Generate embedding
-                        emb = await self.image_embedder.embed_image([img_path])
-                        if emb.shape[0] == 0:
+            vectors_added = 0
+            BATCH_SIZE = 8
+
+            try:
+                  for i in range(0, len(valid_paths), BATCH_SIZE):
+                        batch_paths = valid_paths[i: i + BATCH_SIZE]
+                        batch_ids = valid_ids[i : i + BATCH_SIZE]
+
+                        # Generate embedding
+                        embeddings, valid_indices = await self.image_embedder.embed_image(batch_paths)
+                        if embeddings.shape[0] == 0:
                               continue
-                        #Store in FAISS (image index)
+                        
+                        filtered_indices = [batch_ids[i] for i in valid_indices]
+
+                        # Store in FAISS (image index)
                         await self.faiss_manager.add_embeddings(
-                              embeddings=emb,
-                              chunk_ids=[chunk["id"]],
+                              embeddings=embeddings,
+                              chunk_ids=filtered_indices,
                               index_type="image",
+                              save=False,
                         )
-                        vectors_added += 1
-                  except Exception as e:
-                        print(f"Failed image embedding: {str(e)}")
-                        traceback.print_exc()
-                        continue
+                        vectors_added += len(batch_ids)
+                  
+                  await self.faiss_manager.save_index("image")
+
+            except Exception as e:
+                  print(f"Failed image embedding: {str(e)}")
+                  traceback.print_exc()
+
             
             return {
                   "total_chunks": len(image_chunks),

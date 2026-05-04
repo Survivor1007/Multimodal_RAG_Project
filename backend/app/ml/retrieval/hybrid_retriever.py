@@ -1,13 +1,13 @@
 from typing import List, Tuple
 import numpy as np
-import logging
+import structlog
 from .semantic_retriever import SemanticRetriever
 from .keyword_retriever import KeywordRetriever
 from ..embeddings.image_embedder import ImageEmbedder
 from .faiss_manager import FAISSManager
 from ..ranking.rrf_ranker import RRF_Ranker
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 class HybridRetriever:
       def __init__(self):
@@ -51,9 +51,13 @@ class HybridRetriever:
             image_results = [(cid, s) for cid, s in image_results if s > 0.25]
             
             
-            logger.debug("SEM:", sem_results[:5])
-            logger.debug("KW:", kw_results[:5])
-            logger.debug("IMG:", image_results[:5])
+            logger.debug(
+                  "Results came from retrivers",
+                  semantic_results = sem_results,
+                  keyword_results = kw_results,
+                  image_results = image_results,
+            )
+            
             
             #=============
             #SCORE FUSION

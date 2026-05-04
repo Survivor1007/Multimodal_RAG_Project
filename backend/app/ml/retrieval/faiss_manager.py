@@ -75,7 +75,8 @@ class FAISSManager:
             self,
             embeddings: np.ndarray, 
             chunk_ids: List[int], 
-            index_type : str  = "text"
+            index_type : str  = "text",
+            save: bool = True
       ) -> List[int]:
             """Add embeddings using real DB chunk IDs."""
 
@@ -92,7 +93,7 @@ class FAISSManager:
                   mapping = self.mappings.setdefault(index_type, {})
 
                   embeddings = embeddings.astype(np.float32)
-                  faiss.normalize_L2(embeddings)
+                  # faiss.normalize_L2(embeddings)
 
                   start_id = index.ntotal 
                   index.add(embeddings)
@@ -102,13 +103,14 @@ class FAISSManager:
                   for f_id, c_id in zip(faiss_ids, chunk_ids):
                         mapping[f_id] = c_id
                   
-                  #==== Invariant Check ====
+                  # ==== Invariant Check ====
                   if index.ntotal != len(mapping):
                         raise RuntimeError(
                               f"[FAISS:{index_type}] Index Size ({index.ntotal}) != Mapping Size ({len(mapping)})"
                         )
                   
-                  self._save_index(index_type)
+                  if save :
+                        self._save_index(index_type)
 
                   # logger.info(f"[FAISS:{index_type}] Added ({len(chunk_ids)}) |  Total : ({index.ntotal})")
                   logger.info(
@@ -152,7 +154,7 @@ class FAISSManager:
 
             # logger.info(f"[FAISS:{index_type}] Search k = {k} | Index Size = {index.ntotal}")
             logger.info(
-                  "FAISS search",
+                  f"FAISS search : {index_type}",
                   index_type = index_type,
                   k = k,
                   index_size = index.ntotal
@@ -195,6 +197,10 @@ class FAISSManager:
                   return 0
             return index.ntotal
       
+      async def save_index(self, index_type: str):
+            async with self._write_lock:
+                  self._save_index(index_type)
+
       @property
       def total_vectors(self) -> Dict[str, int]:
             """Safe access to ntotal."""

@@ -53,34 +53,53 @@ class ImageEmbedder(BaseEmbedder):
 
             await self._load_model()
 
-            # Convert paths to PIL
-            pil_images = []
-            for img in images:
-                  try:
-                        if isinstance(img, str):
-                              pil_images.append(Image.open(img).convert("RGB"))
-                        else:
-                              pil_images.append(img.convert("RGB"))
-                  except Exception:
-                        continue
+            loop = asyncio.get_running_loop()
+
+            # Step 1: Parallel image loading
+            def _load_images():
+                  # Convert paths to PIL
+                  pil_images = []
+                  valid_indices = []
+
+                  for idx, img in enumerate(images):
+                        try:
+                              if isinstance(img, str):
+                                    with Image.open(img) as im:
+                                          pil_images.append(im.convert("RGB"))
+                              else:
+                                    pil_images.append(img.convert("RGB"))
+
+                              valid_indices.append(idx)
+                        except Exception:
+                              continue
+                  
+                  return pil_images, valid_indices
+
+            pil_images , valid_indices = await loop.run_in_executor(None, _load_images)
             
             if not pil_images:
                   return np.zeros((0, self.dimension), dtype=np.float32)
 
-            loop = asyncio.get_running_loop()
-
             def _process():
-                  inputs = self._processor(images=pil_images, return_tensors="pt", padding=True).to(self.device)
+                  inputs = self._processor(
+                        images=pil_images, 
+                        return_tensors="pt", 
+                        padding=True
+                  ).to(self.device)
+
                   with torch.no_grad():
                         outputs = self._model.get_image_features(**inputs)
+
                         if hasattr(outputs, "pooler_output"):
                               features = outputs.pooler_output
-                        else:
-                              features = outputs
+
                         features = features / features.norm(dim = 1, keepdim=True)
+
                   return features.cpu().numpy()
 
-            return await loop.run_in_executor(None, _process)
+            embeddings =  await loop.run_in_executor(None, _process)
+
+            return embeddings, valid_indices
 
       @property
       def dimension(self) -> int:

@@ -37,7 +37,7 @@ def setup_logging():
                   "critical" : "🔥"
             }
 
-            event_dict["level_display"] = f"{emoji_map.get(level, '')} {level.upper()}"
+            event_dict["level_display"] = f"{emoji_map.get(level, '')}  {level.upper()}"
             event_dict["raw_level"] = level.upper()
 
             return event_dict
@@ -132,6 +132,8 @@ def setup_logging():
             uv_logger = logging.getLogger(name)
             uv_logger.handlers = []
             uv_logger.propagate = True
+
+      logging.getLogger("app.ml.retrieval").setLevel(logging.DEBUG)
       #Uvicorn access logs
       # logging.getLogger("uvicorn.access").handlers = []
 
