@@ -9,6 +9,7 @@ from .query_service import QueryService
 from ..ml.ranking.explainability import ExplainabilityModule
 from ..core.config import settings
 from ..schemas.query import RAGRequest
+from ..utils.serializers import clean_numpy
 
 
 class RAGService:
@@ -42,7 +43,7 @@ class RAGService:
                         results.append({
                               "chunk_id": -(i + 1),
                               "content": f"Title: {item.get('title', '')}\nSource: {url}\n\n{item.get('content', '')}",
-                              "score": 0.82,
+                              "score": 0.90,
                               "chunk_type": "web",
                               "metadata": {
                                     "source": "tavily",
@@ -81,6 +82,8 @@ class RAGService:
 
             if not should_use_web and internal_results:
                   avg_internal_score = sum(r.get("score", 0) for r in internal_results) / len(internal_results)
+                  avg_internal_score = min(1.0 , avg_internal_score * 10)
+
                   should_use_web = avg_internal_score < settings.WEB_SEARCH_THRESHOLD
 
             web_results = []
@@ -100,12 +103,38 @@ class RAGService:
                         key = f"db_{item['chunk_id']}"
                   else:
                         key = f"web_{item['metadata'].get('url', item['content'][:100])}"
+
                   if key not in seen:
                         seen[key] = True
-                        unique_candidates.append((item["chunk_id"], item["score"], item["content"]))
+                        unique_candidates.append({
+                              "chunk_id": item["chunk_id"],
+                              "score" : float(item["score"]),
+                              "content" : item["content"],
+                              "metadata" :  item.get("metadata", {}),
+                              "scores" : clean_numpy(item.get("scores", {})),
+                              "retrieval" : clean_numpy(item.get("retrieval", {})),
+                        })
             
+
+            def is_relevant(query: str, content: str) -> bool:
+                  query_tokens = set(query.lower().split())
+                  content_tokens = set(content.lower().split())
+                  
+                  overlap = len(query_tokens & content_tokens)
+                  return overlap >= 1  
+            
+            filtered_candidates  = [
+                  item for item in unique_candidates
+                  if is_relevant(request.query, item["content"])
+            ]
+
             # Step 4: Cross-Encoder Reranking
-            reranked = await self.explain_module.reranker.rerank(request.query, unique_candidates[:request.k * 2])
+            rerank_input = [
+                  (item["chunk_id"], item["score"], item["content"])
+                  for item in filtered_candidates
+            ]
+            reranked = await self.explain_module.reranker.rerank(request.query, rerank_input[:request.k * 2])
+
 
             
 
@@ -122,14 +151,16 @@ class RAGService:
                         "content": content[:750] + "..." if len(content) > 750 else content,
                         "score": float(score),
                         "chunk_type": "web" if cid < 0 else "text",
-                        "metadata": original["metadata"] if original else {}
+                        "metadata": original["metadata"] if original else {},
+                        "scores" : clean_numpy(original.get("scores")) if original else None,
+                        "retrieval" : clean_numpy(original.get("retrieval")) if original else None,
                   })
             
             # Step 6: Generate answer with Groq
             context = "\n\n".join([s["content"] for s in final_sources])
 
             #------Confidence Calculation----------------------------------------------------
-            rerank_scores = [score for _, score, _ in reranked[:request.k]]
+            rerank_scores = [float(score) for _, score, _ in reranked[:request.k]]
             avg_rerank_score = sum(rerank_scores) / len(rerank_scores) if rerank_scores else 0.0
 
             # ---Normalize (cross-encoder scores are often unbounded)---
@@ -171,7 +202,7 @@ class RAGService:
                   "query": request.query,
                   "answer": answer,
                   "sources": final_sources,
-                  "confidence": confidence,
+                  "confidence": float(confidence),
                   "used_web_search": should_use_web
             }
             

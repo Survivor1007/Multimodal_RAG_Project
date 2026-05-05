@@ -30,7 +30,7 @@ class HybridRetriever:
             #TEXT + KEYWORD 
             #===============
             sem_results = await self.semantic.retrieve(query, k * 2)
-            kw_results = await self.keyword.retrieve(query, k * 2)
+            kw_results = await self.keyword.retrieve(query, k)
 
             #================
             #IMAGE RETRIEVAL
@@ -50,6 +50,7 @@ class HybridRetriever:
                   print(f"Image retrieval failed: {str(e)}")
 
             sem_results = [(cid, s) for cid, s in sem_results if s > 0.3]
+            kw_results = [(cid, s) for cid, s in kw_results if s > 1.0]
             image_results = [(cid, s) for cid, s in image_results if s > 0.25]
             
             

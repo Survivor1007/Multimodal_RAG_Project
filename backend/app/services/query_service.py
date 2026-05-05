@@ -3,12 +3,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from collections import defaultdict
 import hashlib
 import structlog
+
 from ..db.repositories.base_repository import BaseRepository
 from ..db.repositories.document_repository import DocumentRepository
 from ..db.models.chunk import Chunk
 from ..ml.retrieval.hybrid_retriever import HybridRetriever
 from ..ml.ranking.rrf_ranker import RRF_Ranker
 from ..ml.ranking.explainability import ExplainabilityModule
+from ..utils.serializers import to_python_float, clean_numpy
 
 logger = structlog.get_logger()
 
@@ -72,14 +74,14 @@ class QueryService:
 
                   source["score"] = float(score)
                   source["scores"] = {
-                        "faiss": r.faiss_score,
-                        "bm25": r.bm25_score,
-                        "clip": r.clip_score,
-                        "rrf" : r.rrf_score
+                        "faiss": to_python_float(r.faiss_score),
+                        "bm25": to_python_float(r.bm25_score),
+                        "clip": to_python_float(r.clip_score),
+                        "rrf" : to_python_float(r.rrf_score),
                   }
                   source["retrieval"] = {
-                        "retrievars_used" : list(r.ranks.keys()),
-                        "rank_postitions":r.ranks,
+                        "retrievers_used" : list(r.ranks.keys()),
+                        "rank_positions":clean_numpy(r.ranks),
                   }
 
                   results.append(source)

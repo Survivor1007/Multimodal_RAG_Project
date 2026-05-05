@@ -10,7 +10,7 @@ router = APIRouter(tags=["rag"])
 
 rag_service = RAGService()
 
-@router.post("/rag", response_model=RAGResponse)
+@router.post("/rag")
 async def rag_endpoint(
     request: RAGRequest,
     db: AsyncSession = Depends(get_db)
@@ -20,4 +20,4 @@ async def rag_endpoint(
             db=db,
             request=request
       )
-      return RAGResponse(**response)
+      return response
