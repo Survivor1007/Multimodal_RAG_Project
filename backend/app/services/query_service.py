@@ -2,7 +2,7 @@ from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from collections import defaultdict
 import hashlib
-import logging
+import structlog
 from ..db.repositories.base_repository import BaseRepository
 from ..db.repositories.document_repository import DocumentRepository
 from ..db.models.chunk import Chunk
@@ -10,7 +10,7 @@ from ..ml.retrieval.hybrid_retriever import HybridRetriever
 from ..ml.ranking.rrf_ranker import RRF_Ranker
 from ..ml.ranking.explainability import ExplainabilityModule
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger()
 
 class QueryService:
       """Handles search and retrieval logic"""
@@ -29,12 +29,15 @@ class QueryService:
 
             
             
-            logger.debug(f"[QueryService] Hybrid Results : {ranked_results}")
+            logger.debug(
+                  f"[QueryService] Hybrid Results : {len(ranked_results)}",
+
+            )
             
             if not ranked_results:
                   return []
 
-            chunk_ids = [chunk_id for chunk_id, _ in ranked_results]
+            chunk_ids = [r.chunk_id for r in ranked_results]
             
             # ---Fetch actual chunks + document + content_hash relaiably in fresh session----------------------
             raw_sources = await self.document_repo.get_chunks_with_documents_and_hashes(db, chunk_ids=chunk_ids)
@@ -47,7 +50,10 @@ class QueryService:
             seen_chunk_content: set[str] = set()
             results = []
 
-            for chunk_id, score in ranked_results:
+            for r in ranked_results:
+                  chunk_id = r.chunk_id
+                  score = r.rrf_score
+
                   source = chunk_map.get(chunk_id)
                   if not source :
                         continue
@@ -65,6 +71,17 @@ class QueryService:
                   seen_chunk_content.add(content_hash)
 
                   source["score"] = float(score)
+                  source["scores"] = {
+                        "faiss": r.faiss_score,
+                        "bm25": r.bm25_score,
+                        "clip": r.clip_score,
+                        "rrf" : r.rrf_score
+                  }
+                  source["retrieval"] = {
+                        "retrievars_used" : list(r.ranks.keys()),
+                        "rank_postitions":r.ranks,
+                  }
+
                   results.append(source)
 
                   if len(results) >= k:
@@ -72,5 +89,7 @@ class QueryService:
             
             if use_reranker and results:
                   results = await self.reranker.rank([results], query=query)
+            
+            [item.pop("document_content_hash", None) for item in results]
             
             return results

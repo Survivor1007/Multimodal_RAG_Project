@@ -10,7 +10,7 @@ router = APIRouter(tags=["search"])
 
 query_service = QueryService()
 
-@router.post("/search", response_model=SearchResponse)
+@router.post("/search")
 async def search_documents(
     request: SearchRequest,
     db: AsyncSession = Depends(get_db)
@@ -23,9 +23,4 @@ async def search_documents(
             use_reranker=request.use_reranker
       )
 
-      return SearchResponse(
-            query=request.query,
-            results=results,
-            total_retrieved=len(results),
-            ranking_method="hybrid_rrf_reranker" if request.use_reranker else "hybrid search"
-      )
+      return results

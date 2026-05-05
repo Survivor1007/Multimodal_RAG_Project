@@ -1,11 +1,13 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 import numpy as np
 import structlog
+
 from .semantic_retriever import SemanticRetriever
 from .keyword_retriever import KeywordRetriever
 from ..embeddings.image_embedder import ImageEmbedder
 from .faiss_manager import FAISSManager
 from ..ranking.rrf_ranker import RRF_Ranker
+from .retrieval_result import HybridResult
 
 logger = structlog.get_logger()
 
@@ -17,7 +19,7 @@ class HybridRetriever:
             self.faiss_manager = FAISSManager()
             self.rrf_ranker = RRF_Ranker()
 
-      async def retrieve(self, query: str, k: int = 10) -> List[Tuple[int, float]]:
+      async def retrieve(self, query: str, k: int = 10) -> List[HybridResult]:
             """
                   ### Hybrid retriever:
                    - Semantic retriever 
@@ -58,26 +60,37 @@ class HybridRetriever:
                   image_results = image_results,
             )
             
-            
-            #=============
-            #SCORE FUSION
-            #=============
-            score_map: dict[int, float] = {}
-            
-            def rrf_fusion(weighted_lists, k=60):
-                  score_map: dict[int, float] = {}
+            # ==========================
+            # BUILD STRUCTURED RESULTS
+            # ==========================
+            results : Dict[int, HybridResult] = {}
 
-                  for results, weight in weighted_lists:
-                        for rank, (chunk_id, _) in enumerate(results, start=1):
-                              score = weight * (1 / (k + rank))
-                              score_map[chunk_id] = score_map.get(chunk_id, 0.0) + score
+            def update(results_list, key: str, weight : float):
+                  for rank, (chunk_id, score) in enumerate(results_list, start= 1):
+                        r = results.setdefault(chunk_id, HybridResult(chunk_id = chunk_id))
 
-                  return score_map
+                        # Store raw score
+                        if key == "faiss":
+                              r.faiss_score = score
+                        elif key == "bm25":
+                              r.bm25_score = score
+                        elif key == "clip":
+                              r.clip_score= score
+                        
+                        # Store rank
+                        r.ranks[key] = rank
+
+                        # Accumulate RRF
+                        r.rrf_score += weight * ( 1 / (60 + rank))
             
-            score_map = rrf_fusion([
-                  (sem_results, 1.0),
-                  (kw_results, 0.5),
-                  (image_results, 0.3),
-            ])
-            sorted_results = sorted(score_map.items(), key=lambda x: x[1], reverse=True)[:k]
+            update(sem_results, "faiss", weight= 1.0)
+            update(kw_results, "bm25", weight=0.5)
+            update(image_results, "clip", weight=0.3)
+
+            sorted_results = sorted(
+                  results.values(), 
+                  key=lambda x: x.rrf_score, 
+                  reverse=True
+            )[:k]
+
             return sorted_results
