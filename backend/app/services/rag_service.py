@@ -81,10 +81,12 @@ class RAGService:
             should_use_web = request.use_web_search
 
             if not should_use_web and internal_results:
-                  avg_internal_score = sum(r.get("score", 0) for r in internal_results) / len(internal_results)
-                  avg_internal_score = min(1.0 , avg_internal_score * 10)
+                  top_internal_score = max(
+                        (r.get("score",0.0) for r in internal_results),
+                        default= 0.0
+                  )
 
-                  should_use_web = avg_internal_score < settings.WEB_SEARCH_THRESHOLD
+                  should_use_web = top_internal_score < settings.WEB_SEARCH_THRESHOLD
 
             web_results = []
             if should_use_web:

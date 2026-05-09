@@ -49,8 +49,33 @@ class HybridRetriever:
             except Exception as e:
                   print(f"Image retrieval failed: {str(e)}")
 
-            sem_results = [(cid, s) for cid, s in sem_results if s > 0.3]
-            kw_results = [(cid, s) for cid, s in kw_results if s > 1.0]
+            # sem_results = [(cid, s) for cid, s in sem_results if s > 0.3]
+            # kw_results = [(cid, s) for cid, s in kw_results if s > 1.0]
+
+            # ============================
+            # Adaptive Semantic Filtering
+            # ============================
+            if sem_results : 
+                  best_sem = max(score for _, score in sem_results)
+
+                  sem_results = [
+                        (cid,score)
+                        for cid, score in sem_results
+                        if score >= 0.75 * best_sem
+                  ]
+            
+            # ============================
+            # Adaptive BM25 Filtering
+            # ============================
+            if kw_results : 
+                  best_kw = max(score for _, score in kw_results)
+
+                  kw_results = [
+                        (cid,score)
+                        for cid, score in kw_results
+                        if score >= 0.75 * best_kw
+                  ]
+
             image_results = [(cid, s) for cid, s in image_results if s > 0.25]
             
             
@@ -84,8 +109,26 @@ class HybridRetriever:
                         # Accumulate RRF
                         r.rrf_score += weight * ( 1 / (60 + rank))
             
-            update(sem_results, "faiss", weight= 1.0)
-            update(kw_results, "bm25", weight=0.5)
+            query_lower = query.lower()
+
+            informational_patterns = [
+                  "what is",
+                  "explain",
+                  "tell me",
+                  "describe",
+                  "overview"
+            ]
+
+            is_informational = any(
+                  p in query_lower
+                  for p in informational_patterns
+            )
+
+            semantic_weight = 1.2 if is_informational else 1.0
+            keyword_weight = 0.3 if is_informational else 0.5
+
+            update(sem_results, "faiss", weight= semantic_weight)
+            update(kw_results, "bm25", weight=keyword_weight)
             update(image_results, "clip", weight=0.3)
 
             sorted_results = sorted(

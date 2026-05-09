@@ -1,6 +1,6 @@
 import asyncio
 from typing import List, Tuple
-
+import math
 
 class CrossEncoderReranker:
       """Cross-Encoder reranker for final relevance scoring."""
@@ -33,22 +33,50 @@ class CrossEncoderReranker:
 
             # Combine original score + reranker score
             reranked = []
-            min_score = min(rerank_scores)
-            max_score = max(rerank_scores)
-
 
             for (chunk_id, orig_score, content), rerank_score in zip(candidates, rerank_scores):
-                  #---Normalize Reranker score---
-                  if max_score == min_score:
-                        norm_rerank = 0.5
-                  else:
-                        norm_rerank = (rerank_score - min_score) / (max_score - min_score)
-                  
-                  # Normalize original score and avoid negative impact
-                  norm_orig = max(0.0, min(1.0, float(orig_score)))
-                  final_score = 0.7 * norm_rerank + 0.3 * norm_orig
+                  rerank_score = float(rerank_score)
 
-                  reranked.append((chunk_id, final_score, content))
+                  # Sigmoid normalizaiton
+                  norm_rerank = 1 / ( 1 + math.exp(-rerank_score))
+
+                  # Original Score
+                  norm_orig = max(0.0, min(1.0, float(orig_score)))
+
+                  # Web boost
+                  web_bonus = 0.10 if chunk_id < 0 else 0.0
+
+                  # Final weighted score
+                  final_score = (
+                        0.80 * norm_rerank + 
+                        0.20 * norm_orig + 
+                        web_bonus
+                  )
+
+                  reranked.append(
+                        (chunk_id, final_score, content)
+                  )
 
             # Sort by final score
-            return sorted(reranked, key=lambda x: x[1], reverse=True)
+            return sorted(reranked, key=lambda x: x[1], reverse=True)    
+      
+      
+            # min_score = min(rerank_scores)
+            # max_score = max(rerank_scores)
+
+
+            # for (chunk_id, orig_score, content), rerank_score in zip(candidates, rerank_scores):
+            #       #---Normalize Reranker score---
+            #       if max_score == min_score:
+            #             norm_rerank = 0.5
+            #       else:
+            #             norm_rerank = (rerank_score - min_score) / (max_score - min_score)
+                  
+            #       # Normalize original score and avoid negative impact
+            #       norm_orig = max(0.0, min(1.0, float(orig_score)))
+            #       final_score = 0.7 * norm_rerank + 0.3 * norm_orig
+
+            #       reranked.append((chunk_id, final_score, content))
+
+            # # Sort by final score
+            # return sorted(reranked, key=lambda x: x[1], reverse=True)
