@@ -116,7 +116,7 @@ class IngestionPipeline:
                         vectors_added += len(batch_texts)
 
                         logger.info(
-                              f"Batch Processed",
+                              f"Text Batch Processed",
                               size = len(batch_texts),
                               time = time.time() - start,
                         )
@@ -133,6 +133,7 @@ class IngestionPipeline:
                   "faiss_vectors": self.faiss_manager.get_total_vectors("text"),
                   "vectors_added": vectors_added,
             }
+      
       #==================================
       #PIPELINE FOR IMAGE INGESTION (v2)
       #==================================
@@ -175,6 +176,7 @@ class IngestionPipeline:
                         "vectors_added": 0,
                   }
 
+            start = time.time()
             vectors_added = 0
             BATCH_SIZE = 8
 
@@ -198,6 +200,12 @@ class IngestionPipeline:
                               save=False,
                         )
                         vectors_added += len(batch_ids)
+
+                        logger.info(
+                              f"Text Batch Processed",
+                              size = len(batch_ids),
+                              time = time.time() - start,
+                        )
                   
                   await self.faiss_manager.save_index("image")
 
