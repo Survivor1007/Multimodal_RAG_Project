@@ -89,8 +89,8 @@ class QueryService:
                   if len(results) >= k:
                         break
             
-            if use_reranker and results:
-                  results = await self.reranker.rank([results], query=query)
+            # if use_reranker and results:
+            #       results = await self.reranker.rank([results], query=query)
             
             [item.pop("document_content_hash", None) for item in results]
             
