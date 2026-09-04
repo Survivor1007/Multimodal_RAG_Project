@@ -2,7 +2,7 @@
 name = "multimodal-hybrid-rag"
 version = "0.1.0"
 description = "Production-grade Multimodal Semantic Search + Hybrid RAG System"
-authors = [{ name = "Your Name", email = "you@example.com" }]
+authors = [{ name = "Survivor1007" }]
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115.0",
