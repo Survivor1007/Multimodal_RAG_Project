@@ -3,21 +3,20 @@ export default {
   darkMode: "class",
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,tsx,jsx}",
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
-      background: "#09090B",
-      foreground: "#FAFAFA",
-      card: "#111113",
-      border: "#27272A",
-      muted: "#71717A",
-      primary: "#7C3AED",
-    },
-    backdropBlur: {
-      xs: "2px",
+      colors: {
+        brand: {
+          50: "#f5f3ff",
+          100: "#ede9fe",
+          500: "#8b5cf6",
+          600: "#7c3aed",
+          700: "#6d28d9",
+        },
+      },
     },
   },
   plugins: [],
-}
-
+};
