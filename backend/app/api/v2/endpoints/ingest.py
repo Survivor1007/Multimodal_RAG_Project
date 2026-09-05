@@ -14,8 +14,8 @@ ingestion_service = IngestionService()
 
 @api_router.post("/file")
 async def upload_file(
-      title:str = Form(description="Title of the file"),
       file:UploadFile = File(description="Upload file of type 'txt' "),
+      title: str | None = Form(default=None, description="Title of the file"),
       user_id: int | None = Form(default=None),
       db: AsyncSession = Depends(get_db)
 ):
@@ -29,6 +29,8 @@ async def upload_file(
             file_type = file_name.split(".")[-1]
       else:
             file_type = "unknown"
+
+      resolved_title = (title or "").strip() or Path(file_name).stem or file_name
       
       file_path = await save_upload_file(file.file, file.filename)
 
@@ -36,7 +38,7 @@ async def upload_file(
 
       result = await ingestion_service.ingest_file(
             db= db,
-            title = title,
+            title = resolved_title,
             file_name = file_name,
             file_type = file_type,
             content = extracted_text,
@@ -47,9 +49,9 @@ async def upload_file(
 
 @api_router.post("/image")
 async def upload_image(
-      title: str = Form(...),
       image: UploadFile = File(...),
-      user_id: int | None = None,
+      title: str | None = Form(default=None, description="Title of the image"),
+      user_id: int | None = Form(default=None),
       db: AsyncSession = Depends(get_db)
 ):
       """
@@ -57,6 +59,7 @@ async def upload_image(
       """
       try:
             file_name = image.filename or "unknown"
+            resolved_title = (title or "").strip() or Path(file_name).stem or file_name
 
             if "." in file_name:
                   file_type = file_name.split(".")[-1]
@@ -78,7 +81,7 @@ async def upload_image(
                   file_name =file_name.split(".")[-2]
             result = await ingestion_service.ingest_image(
                   db = db,
-                  title = title,
+                  title = resolved_title,
                   file_name = file_name,
                   file_type = file_type,
                   image_path = str(file_path),

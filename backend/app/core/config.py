@@ -17,7 +17,7 @@ class Settings(BaseSettings):
       API_V2_STR: str = Field(default="/api/v2")
 
       # Database
-      DATABASE_URL: str
+      DATABASE_URL: str 
 
       # Logging
       LOG_LEVEL: str = Field(default="INFO")
