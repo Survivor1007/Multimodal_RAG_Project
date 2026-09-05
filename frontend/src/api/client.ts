@@ -9,6 +9,18 @@ export const apiClient = axios.create({
       },
 });
 
+apiClient.interceptors.request.use((config) => {
+      if (config.data instanceof FormData) {
+            const headers = config.headers;
+            if (headers && typeof headers.delete === "function") {
+                  headers.delete("Content-Type");
+            } else if (headers) {
+                  delete headers["Content-Type"];
+            }
+      }
+      return config;
+});
+
 
 apiClient.interceptors.response.use(
   (response) => response,

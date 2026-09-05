@@ -10,10 +10,6 @@ export const uploadApi = {
       "/v2/upload/file",
       formData,
       {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-
         onUploadProgress: (progressEvent) => {
           if (!progressEvent.total) return;
 
@@ -37,10 +33,6 @@ export const uploadApi = {
       "/v2/upload/image",
       formData,
       {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-
         onUploadProgress: (progressEvent) => {
           if (!progressEvent.total) return;
 

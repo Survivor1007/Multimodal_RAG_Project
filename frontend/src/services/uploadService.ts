@@ -7,7 +7,8 @@ export const uploadService = {
             onProgress?: (progress: number) => void
       ) {
             const formData = new FormData();
-            formData.append("title", payload.title);
+            const fallbackTitle = payload.file.name.replace(/\.[^/.]+$/, "") || payload.file.name;
+            formData.append("title", payload.title.trim() || fallbackTitle);
 
             if(payload.type === "image") {
                   formData.append("image", payload.file);
