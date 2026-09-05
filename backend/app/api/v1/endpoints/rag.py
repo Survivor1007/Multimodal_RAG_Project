@@ -10,14 +10,14 @@ router = APIRouter(tags=["rag"])
 
 rag_service = RAGService()
 
-@router.post("/rag")
+@router.post("/rag", response_model=RAGResponse)
 async def rag_endpoint(
     request: RAGRequest,
     db: AsyncSession = Depends(get_db)
 ):
-      """Full RAG pipeline with retrieval + generation."""
-      response = await rag_service.generate_rag_response(
-            db=db,
-            request=request
-      )
-      return response
+    """Full RAG pipeline with hybrid retrieval, Cross-Encoder reranking, and Groq generation."""
+    response = await rag_service.generate_rag_response(
+        db=db,
+        request=request
+    )
+    return response
