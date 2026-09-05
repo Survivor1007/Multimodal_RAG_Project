@@ -403,82 +403,68 @@ Frontend focuses heavily on:
 
 ---
 
-# 📦 Installation
+---
 
-# 1️⃣ Clone Repository
+# 🛠️ Reproducible Setup & Quickstart
+
+### 1️⃣ One-Step Automated Environment Setup
 
 ```bash
-git clone <repository-url>
-cd project-root
+python scripts/setup_env.py
+```
+This script checks Python dependencies, initializes `.env` configurations from `.env.example`, and creates required data directories (`data/indexes`, `models`).
+
+---
+
+### 2️⃣ Pytest Modular Unit & Integration Test Suite
+
+Run the full unit test suite covering chunking, embeddings, FAISS, BM25, RRF fusion, Cross-Encoder reranking, and REST API endpoints:
+
+```bash
+python scripts/run_all_tests.py
+```
+Or directly with pytest:
+```bash
+pytest backend/tests
 ```
 
 ---
 
-# 2️⃣ Backend Setup
+### 3️⃣ Containerized Deployment (Docker Compose)
+
+Launch PostgreSQL database, FastAPI backend, and React frontend in multi-container isolation:
 
 ```bash
-cd backend
-
-python -m venv venv
-```
-
-Activate environment:
-
-### Windows
-
-```bash
-venv\Scripts\activate
-```
-
-### Linux / Mac
-
-```bash
-source venv/bin/activate
-```
-
-Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Create `.env`
-
-```env
-DATABASE_URL=postgresql+asyncpg://user:password@localhost/dbname
-
-GROQ_API_KEY=your_key
-TAVILY_API_KEY=your_key
-
-EMBEDDING_MODEL=all-MiniLM-L6-v2
-CLIP_MODEL=openai/clip-vit-base-patch32
-```
-
-Run backend:
-
-```bash
-uvicorn main:app --reload
+docker-compose up --build
 ```
 
 ---
 
-# 3️⃣ Frontend Setup
+### 4️⃣ CPU-Friendly Fine-Tuning & Evaluation Pipeline
 
 ```bash
-cd frontend
+# 1. Generate synthetic contrastive fine-tuning samples
+python -m backend.scripts.generate_synthetic_dataset
+
+# 2. Run lightweight CPU fine-tuning (~5 min)
+python -m backend.scripts.fine_tune_embedder
+
+# 3. Calculate MRR@10, NDCG@10, Recall@5 metrics
+python -m backend.scripts.evaluate_retrieval
 ```
 
-Install dependencies:
+---
 
-```bash
-npm install
-```
+# 📚 System Documentation (`docs/`)
 
-Run frontend:
+* 🏗️ [Architecture Specifications](docs/ARCHITECTURE.md)
+* 🧠 [Fine-Tuning & Evaluation Guide](docs/FINE_TUNING_GUIDE.md)
+* 📡 [REST API Documentation](docs/API_DOCUMENTATION.md)
+* 📊 [Retrieval Evaluation Benchmarks](docs/EVALUATION_BENCHMARKS.md)
 
-```bash
-npm run dev
-```
+---
+
+# 📦 Manual Installation
 
 ---
 
