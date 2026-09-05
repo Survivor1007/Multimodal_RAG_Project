@@ -1,9 +1,10 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import MainLayout from "../layouts/MainLayout";
 import HomePage from "../pages/HomePage";
-import UploadPage from "../pages/UploadPage";
-import SearchPage from "../pages/SearchPage";
+import ChatPage from "../pages/ChatPage";
+import DocumentsPage from "../pages/DocumentsPage";
+import AnalyticsPage from "../pages/AnalyticsPage";
 
 export const router = createBrowserRouter([
   {
@@ -12,18 +13,28 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <HomePage/>,
+        element: <HomePage />,
       },
-
+      {
+        path: "chat",
+        element: <ChatPage />,
+      },
+      {
+        path: "documents",
+        element: <DocumentsPage />,
+      },
+      {
+        path: "analytics",
+        element: <AnalyticsPage />,
+      },
       {
         path: "upload",
-        element: <UploadPage/>,
+        element: <Navigate to="/documents" replace />,
       },
-
       {
-            path: "search",
-            element: <SearchPage/>
-      }
+        path: "search",
+        element: <Navigate to="/documents" replace />,
+      },
     ],
   },
 ]);
