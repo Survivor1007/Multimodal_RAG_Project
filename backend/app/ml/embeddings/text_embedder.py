@@ -21,8 +21,16 @@ class TextEmbedder(BaseEmbedder):
       async def _load_model(self):
             async with self._lock:
                   if self._model is None:
+                        import os
                         from sentence_transformers import SentenceTransformer
-                        self._model = SentenceTransformer(self.model_name, device=self.device)
+                        
+                        target_path = settings.EMBEDDING_MODEL_PATH
+                        if target_path and os.path.exists(target_path):
+                              model_to_load = target_path
+                        else:
+                              model_to_load = self.model_name
+                              
+                        self._model = SentenceTransformer(model_to_load, device=self.device)
                         self._dimension = self._model.get_embedding_dimension()
 
       async def embed_text(self, texts: List[str]) -> np.ndarray:
