@@ -12,6 +12,15 @@ interface SearchResultCardProps {
 
 export default function SearchResultCard({ result }: SearchResultCardProps) {
       const [expanded, setExpanded] = useState(false);
+      const retrievers = Object.entries(result.ranks ?? {})
+            .filter(([, rank]) => rank !== null)
+            .map(([retriever]) => retriever);
+      const source = typeof result.metadata.source === "string"
+            ? result.metadata.source
+            : "";
+      const preview = result.content.length > 300
+            ? `${result.content.slice(0, 300)}...`
+            : result.content;
 
       return (
             <motion.div 
@@ -23,16 +32,16 @@ export default function SearchResultCard({ result }: SearchResultCardProps) {
                         <div className="flex items-start justify-between gap-4">
                               <div>
                                     <h1 className="text-xl font-semibold">
-                                          {result.title}
+                                          Chunk #{result.chunk_id}
                                     </h1>
 
                                     <p className="mt-1 text-sm text-muted">
-                                          {result.file_name}
+                                          {source || `${result.chunk_type} content`}
                                     </p>
                               </div>
 
                               <div className="flex flex-wrap gap-2">
-                                    {result.retrieval.retrievers_used.map(
+                                    {retrievers.map(
                                           (retriever) => (
                                                 <RetrievalBadge
                                                       key={retriever}
@@ -44,7 +53,7 @@ export default function SearchResultCard({ result }: SearchResultCardProps) {
                         </div>
 
                         <p className="leading-7 text-zinc-300">
-                              {expanded ? result.content : `${result.content.slice(0, 300)}...`}
+                              {expanded ? result.content : preview}
                         </p>
 
                         <button 
@@ -68,14 +77,16 @@ export default function SearchResultCard({ result }: SearchResultCardProps) {
                               {expanded ? "Show less" : "Show more"}
                         </button>
 
-                        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-                              <ScorePill label="faiss" value={result.scores.faiss}></ScorePill>
+                        <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
+                              <ScorePill label="faiss" value={result.scores?.faiss_similarity ?? null}></ScorePill>
 
-                              <ScorePill label="bm25" value={result.scores.bm25}></ScorePill>
+                              <ScorePill label="bm25" value={result.scores?.bm25_score ?? null}></ScorePill>
 
-                              <ScorePill label="clip" value={result.scores.clip}></ScorePill>
+                              <ScorePill label="clip" value={result.scores?.clip_similarity ?? null}></ScorePill>
 
-                              <ScorePill label="rrf" value={result.scores.rrf}></ScorePill>
+                              <ScorePill label="rrf" value={result.scores?.rrf_score ?? null}></ScorePill>
+
+                              <ScorePill label="rerank" value={result.scores?.rerank_score ?? null}></ScorePill>
                         </div>
 
                         <div className="rounded-2xl bg-background/50 p-4">
@@ -85,7 +96,7 @@ export default function SearchResultCard({ result }: SearchResultCardProps) {
                               
                               <div className="flex flex-wrap gap-3 text-sm text-muted">
                                     {Object.entries(
-                                          result.retrieval.rank_positions
+                                          result.ranks ?? {}
                                     ).map(([retriever, rank]) => (
                                           <div 
                                                 key={retriever}
@@ -98,7 +109,7 @@ export default function SearchResultCard({ result }: SearchResultCardProps) {
                                           >
                                                 {retriever.toUpperCase()} Rank: 
                                                 {" "}
-                                                #{rank}
+                                                #{rank ?? "-"}
                                           </div>
                                     ))}
                               </div>

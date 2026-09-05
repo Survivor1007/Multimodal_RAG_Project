@@ -59,7 +59,13 @@ export default function DocumentsPage() {
     setUploadMessage(null);
 
     const formData = new FormData();
-    formData.append("file", selectedFile);
+    const title = selectedFile.name.replace(/\.[^/.]+$/, "") || selectedFile.name;
+    formData.append("title", title);
+    if (selectedFile.type.startsWith("image/")) {
+      formData.append("image", selectedFile);
+    } else {
+      formData.append("file", selectedFile);
+    }
 
     try {
       if (selectedFile.type.startsWith("image/")) {

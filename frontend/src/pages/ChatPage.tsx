@@ -11,7 +11,7 @@ import {
   Layers,
 } from "lucide-react";
 import { searchApi } from "../api/searchApi";
-import { type RAGResponse, type SearchResult, type LatencyBreakdown } from "../types/search";
+import { type RAGResponse, type LatencyBreakdown } from "../types/search";
 
 interface ChatMessage {
   id: string;
