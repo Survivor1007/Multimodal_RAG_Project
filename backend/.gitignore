@@ -115,5 +115,3 @@ docker-compose.override.yml
 
 data/*
 !data/.gitkeep
-
-tests/*
