@@ -22,9 +22,12 @@ class Settings(BaseSettings):
       # Logging
       LOG_LEVEL: str = Field(default="INFO")
 
-      # ML - will be extended in Phase 2
+      # ML - Model settings & Fine-tuned weights support
       EMBEDDING_MODEL: str = Field(default="all-MiniLM-L6-v2")
+      EMBEDDING_MODEL_PATH: str | None = Field(default=None, description="Path to fine-tuned sentence-transformer model directory")
       CLIP_MODEL: str = Field(default="openai/clip-vit-base-patch32")
+      RERANKER_MODEL: str = Field(default="cross-encoder/ms-marco-MiniLM-L-6-v2")
+      RERANKER_MODEL_PATH: str | None = Field(default=None, description="Path to fine-tuned cross-encoder model directory")
       FAISS_INDEX_PATH: str = Field(default="data/indexes/faiss.index")
       FAISS_IMAGE_INDEX_PATH: str = Field(default="data/indexes/faiss_image.index")
       BM25_INDEX_PATH: str = Field(default="data/indexes/bm25_index.pkl")
